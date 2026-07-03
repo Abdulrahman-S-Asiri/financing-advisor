@@ -84,6 +84,7 @@ type JourneyResponse = {
   max_affordable_new_installment: number;
   matches: OfferMatch[];
   events: AgentEvent[];
+  suggested_questions: string[];
 };
 
 type ChatMessage = {
@@ -907,6 +908,20 @@ function DeliverStage({
           ))}
           {chatError && <p className="errorBanner">{chatError}</p>}
         </div>
+
+        {journey.suggested_questions.length > 0 && (
+          <div className="suggestedQuestions" aria-label="أسئلة مقترحة">
+            {journey.suggested_questions.map((question) => (
+              <button
+                key={question}
+                type="button"
+                onClick={() => onChatInputChange(question)}
+              >
+                {question}
+              </button>
+            ))}
+          </div>
+        )}
 
         <form className="chatForm" onSubmit={onChatSubmit}>
           <input

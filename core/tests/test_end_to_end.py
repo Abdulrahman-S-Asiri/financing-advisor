@@ -35,6 +35,7 @@ def test_journey_borderline_persona_has_mixed_outcomes():
     assert body["profile"]["obligation_trend"] == "stable"
     assert body["profile"]["confidence_level"] == "high"
     assert body["max_affordable_new_installment"] > 0
+    assert body["suggested_questions"]
 
     statuses = {m["status"] for m in body["matches"]}
     # Borderline persona: at least one path forward and at least one blocked

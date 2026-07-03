@@ -88,7 +88,25 @@ def serialize_journey(
             }
             for match in matches
         ],
+        "suggested_questions": suggested_questions(matches),
     }
+
+
+def suggested_questions(matches: list[MatchResult]) -> list[str]:
+    questions: list[str] = []
+    if any(match.status == MatchStatus.ELIGIBLE for match in matches):
+        questions.append("لماذا هذا أفضل خيار متاح؟")
+    elif any(match.status == MatchStatus.CONDITIONAL for match in matches):
+        questions.append("ما الشروط المطلوبة لتحويل العرض إلى مؤهل؟")
+
+    if any(match.near_miss_suggestions for match in matches):
+        questions.append("ما أقل تغيير يجعلني أتأهل؟")
+    if any(match.status == MatchStatus.CONDITIONAL for match in matches):
+        questions.append("ماذا يتغير إذا حولت راتبي؟")
+    if any(not match.offer.rate_verified for match in matches):
+        questions.append("كيف أتعامل مع الأسعار غير المؤكدة؟")
+
+    return questions[:4]
 
 
 def _status_counts(matches: list[MatchResult]) -> dict[str, int]:
