@@ -57,6 +57,9 @@ def build_context(profile: FinancialProfile, matches: list[MatchResult],
                 "cost": asdict(m.cost) if m.cost else None,
                 "dbr": asdict(m.dbr) if m.dbr else None,
                 "rate_verified": m.offer.rate_verified,
+                "near_miss_suggestions": [
+                    asdict(suggestion) for suggestion in m.near_miss_suggestions
+                ],
             }
             for m in matches
         ],

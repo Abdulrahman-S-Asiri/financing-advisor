@@ -69,7 +69,8 @@ button:disabled {
 .brandBlock,
 .topbar,
 .panelHeading,
-.comparisonHeader {
+.comparisonHeader,
+.timelineHeading {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -291,6 +292,7 @@ h3 {
 .metricCard,
 .requestPanel,
 .analysisPanel,
+.agentTimeline,
 .comparisonHeader,
 .offerCard,
 .recommendationPanel,
@@ -333,6 +335,7 @@ h3 {
 
 .requestPanel,
 .analysisPanel,
+.agentTimeline,
 .recommendationPanel,
 .advisorPanel,
 .comparisonHeader,
@@ -438,6 +441,73 @@ input:focus {
   display: block;
   margin-top: 0.45rem;
   font-size: 1.45rem;
+}
+
+.timelineHeading span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  border-radius: 999px;
+  background: #eef6f4;
+  color: var(--teal);
+  font-size: 0.82rem;
+  font-weight: 900;
+  padding: 0.35rem 0.7rem;
+}
+
+.timelineList {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.timelineEvent {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: 0.7rem;
+  min-height: 6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8faf9;
+  padding: 0.8rem;
+}
+
+.timelineIndex {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--teal);
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.timelineMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.timelineMeta strong {
+  font-size: 0.95rem;
+}
+
+.timelineMeta small {
+  border-radius: 999px;
+  background: #e8f1ff;
+  color: var(--blue);
+  font-weight: 900;
+  padding: 0.2rem 0.5rem;
+}
+
+.timelineEvent p {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  line-height: 1.6;
 }
 
 .analysisPanel p {
@@ -556,12 +626,30 @@ input:focus {
   gap: 0.45rem;
 }
 
-.reasonBlock p {
+.reasonBlock p,
+.nearMissBlock p {
   margin: 0;
   border-right: 3px solid var(--line);
   color: var(--muted);
   padding-right: 0.65rem;
   line-height: 1.6;
+}
+
+.nearMissBlock {
+  display: grid;
+  gap: 0.45rem;
+  border: 1px solid rgba(14, 118, 110, 0.18);
+  border-radius: 8px;
+  background: #f0f8f6;
+  padding: 0.8rem;
+}
+
+.nearMissBlock strong {
+  color: var(--teal-dark);
+}
+
+.nearMissBlock p {
+  border-color: var(--teal);
 }
 
 .deliverGrid {
@@ -663,7 +751,8 @@ input:focus {
 
   .topbar,
   .comparisonHeader,
-  .panelHeading {
+  .panelHeading,
+  .timelineHeading {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -671,6 +760,7 @@ input:focus {
   .diamondMap,
   .personaGrid,
   .metricsGrid,
+  .timelineList,
   .formGrid,
   .profileFacts,
   .offerNumbers,

@@ -120,6 +120,16 @@ class DbrDecision:
 
 
 @dataclass
+class NearMissSuggestion:
+    kind: str
+    message: str
+    requested_amount: float | None = None
+    requested_tenor_months: int | None = None
+    monthly_installment: float | None = None
+    status: MatchStatus | None = None
+
+
+@dataclass
 class MatchResult:
     offer: Offer
     status: MatchStatus
@@ -127,3 +137,4 @@ class MatchResult:
     conditions: list[str] = field(default_factory=list)   # what would make it eligible
     cost: CostBreakdown | None = None
     dbr: DbrDecision | None = None
+    near_miss_suggestions: list[NearMissSuggestion] = field(default_factory=list)

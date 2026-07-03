@@ -62,6 +62,17 @@ def serialize_journey(
                 "reasons": match.reasons,
                 "conditions": match.conditions,
                 "rate_verified": match.offer.rate_verified,
+                "near_miss_suggestions": [
+                    {
+                        "kind": suggestion.kind,
+                        "message": suggestion.message,
+                        "requested_amount": suggestion.requested_amount,
+                        "requested_tenor_months": suggestion.requested_tenor_months,
+                        "monthly_installment": suggestion.monthly_installment,
+                        "status": suggestion.status.value if suggestion.status else None,
+                    }
+                    for suggestion in match.near_miss_suggestions
+                ],
             }
             for match in matches
         ],
@@ -196,7 +207,12 @@ def run_journey(
         AgentEventType.FINDING,
         AgentName.MATCHING,
         "تم تصنيف العروض حسب الأهلية والتكلفة.",
-        {"status_counts": _status_counts(ranked)},
+        {
+            "status_counts": _status_counts(ranked),
+            "near_miss_count": sum(
+                len(match.near_miss_suggestions) for match in ranked
+            ),
+        },
     )
     events.emit(
         AgentEventType.AGENT_COMPLETED,

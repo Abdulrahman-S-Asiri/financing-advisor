@@ -32,6 +32,25 @@ type FinancialProfile = {
   total_monthly_income: number;
 };
 
+type AgentEvent = {
+  journey_id: string;
+  sequence: number;
+  type: string;
+  agent: string | null;
+  message_ar: string;
+  payload: Record<string, unknown>;
+  created_at: string;
+};
+
+type NearMissSuggestion = {
+  kind: string;
+  message: string;
+  requested_amount: number | null;
+  requested_tenor_months: number | null;
+  monthly_installment: number | null;
+  status: MatchStatus | null;
+};
+
 type OfferMatch = {
   offer_id: string;
   institution: string;
@@ -44,12 +63,15 @@ type OfferMatch = {
   reasons: string[];
   conditions: string[];
   rate_verified: boolean;
+  near_miss_suggestions: NearMissSuggestion[];
 };
 
 type JourneyResponse = {
+  journey_id: string;
   profile: FinancialProfile;
   max_affordable_new_installment: number;
   matches: OfferMatch[];
+  events: AgentEvent[];
 };
 
 type ChatMessage = {
@@ -108,6 +130,23 @@ const statusFilters: Array<{ key: "all" | MatchStatus; label: string }> = [
   { key: "ineligible", label: "غير مؤهل" },
 ];
 
+const agentLabels: Record<string, string> = {
+  financial_profile: "الملف المالي",
+  matching: "المطابقة",
+  cost: "التكلفة",
+  advisor: "المستشار",
+  application: "التقديم",
+};
+
+const eventLabels: Record<string, string> = {
+  agent_started: "بدأ",
+  tool_called: "أداة",
+  finding: "نتيجة",
+  agent_completed: "اكتمل",
+  error: "خطأ",
+  journey_completed: "انتهت الرحلة",
+};
+
 function formatSar(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "غير متاح";
@@ -128,6 +167,24 @@ function formatPercent(value: number | null | undefined) {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(value);
+}
+
+function formatNearMiss(suggestion: NearMissSuggestion) {
+  const status = suggestion.status ? statusCopy[suggestion.status]?.label : null;
+  const suffix = suggestion.monthly_installment
+    ? ` القسط المتوقع ${formatSar(suggestion.monthly_installment)}.`
+    : "";
+
+  if (suggestion.kind === "lower_amount" && suggestion.requested_amount) {
+    return `مسار متاح عند ${formatSar(suggestion.requested_amount)}${status ? ` بحالة ${status}` : ""}.${suffix}`;
+  }
+  if (suggestion.kind === "shorter_tenor" && suggestion.requested_tenor_months) {
+    return `مسار متاح عند مدة ${suggestion.requested_tenor_months} شهر${status ? ` بحالة ${status}` : ""}.${suffix}`;
+  }
+  if (suggestion.kind === "salary_transfer") {
+    return `تحويل الراتب يفتح هذا المسار${status ? ` بحالة ${status}` : ""}.${suffix}`;
+  }
+  return suggestion.message;
 }
 
 function statusCounts(matches: OfferMatch[]) {
@@ -242,6 +299,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           persona_id: journey.profile.persona_id,
+          journey_id: journey.journey_id,
           message: nextQuestion,
         }),
       });
@@ -513,6 +571,8 @@ function DefineStage({
         />
       </section>
 
+      <AgentTimeline events={journey.events} />
+
       <section className="analysisPanel">
         <div>
           <p className="eyebrow">Define</p>
@@ -546,6 +606,37 @@ function DefineStage({
         )}
       </section>
     </div>
+  );
+}
+
+function AgentTimeline({ events }: { events: AgentEvent[] }) {
+  const visibleEvents = events.filter((event) => event.type !== "journey_completed");
+
+  return (
+    <section className="agentTimeline" aria-label="تسلسل عمل الوكلاء">
+      <div className="timelineHeading">
+        <div>
+          <p className="eyebrow">Agents</p>
+          <h3>الوكلاء أثناء العمل</h3>
+        </div>
+        <span>{visibleEvents.length} حدث</span>
+      </div>
+
+      <div className="timelineList">
+        {visibleEvents.map((event) => (
+          <article key={`${event.sequence}-${event.type}`} className="timelineEvent">
+            <span className="timelineIndex">{event.sequence}</span>
+            <div>
+              <div className="timelineMeta">
+                <strong>{event.agent ? agentLabels[event.agent] ?? event.agent : "الرحلة"}</strong>
+                <small>{eventLabels[event.type] ?? event.type}</small>
+              </div>
+              <p>{event.message_ar}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -722,6 +813,17 @@ function OfferCard({ match, compact = false }: { match: OfferMatch; compact?: bo
           ))}
           {match.reasons.map((reason) => (
             <p key={reason}>سبب: {reason}</p>
+          ))}
+        </div>
+      )}
+
+      {match.near_miss_suggestions.length > 0 && (
+        <div className="nearMissBlock">
+          <strong>مسار بديل</strong>
+          {match.near_miss_suggestions.map((suggestion) => (
+            <p key={`${match.offer_id}-${suggestion.kind}-${suggestion.requested_amount ?? ""}`}>
+              {formatNearMiss(suggestion)}
+            </p>
           ))}
         </div>
       )}

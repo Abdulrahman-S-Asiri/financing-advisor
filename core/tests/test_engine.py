@@ -144,6 +144,8 @@ def test_tenor_cap_60_months_consumer():
     r = match_offer(_offer(max_tenor_months=84), _profile(), 50_000, 72)
     assert r.status == MatchStatus.INELIGIBLE
     assert any("60 months" in x for x in r.reasons)
+    assert any(s.kind == "shorter_tenor" and s.requested_tenor_months == 60
+               for s in r.near_miss_suggestions)
 
 
 def test_salary_floor_reason_is_user_readable():
@@ -157,6 +159,7 @@ def test_conditional_when_salary_elsewhere():
                     50_000, 36)
     assert r.status == MatchStatus.CONDITIONAL
     assert any("salary" in c.lower() for c in r.conditions)
+    assert any(s.kind == "salary_transfer" for s in r.near_miss_suggestions)
 
 
 def test_ranking_cheapest_eligible_first():
@@ -166,3 +169,17 @@ def test_ranking_cheapest_eligible_first():
     bad = match_offer(_offer(id="bad", min_gross_salary=50_000), p, 50_000, 36)
     ranked = rank_matches([bad, pricey, cheap])
     assert [r.offer.id for r in ranked] == ["cheap", "pricey", "bad"]
+
+
+def test_near_miss_lower_amount_for_dbr_breach():
+    p = _profile(gross_salary=9_500, salary_linked_obligations=1_400,
+                 salary_bank="Bank A")
+    r = match_offer(_offer(), p, 80_000, 48)
+    assert r.status == MatchStatus.INELIGIBLE
+    lower_amount = next(
+        suggestion for suggestion in r.near_miss_suggestions
+        if suggestion.kind == "lower_amount"
+    )
+    assert lower_amount.requested_amount < 80_000
+    rerun = match_offer(_offer(), p, lower_amount.requested_amount, 48)
+    assert rerun.status != MatchStatus.INELIGIBLE
