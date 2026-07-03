@@ -76,6 +76,14 @@ def test_admin_fee_cap():
     assert cost.admin_fee(1_000_000, 0.01, 5_000) == 5_000
 
 
+def test_payment_schedule_reconciles_totals():
+    schedule = cost.payment_schedule_flat(100_000, 0.05, 60)
+    assert len(schedule) == 60
+    assert schedule[-1].remaining_principal == 0
+    assert round(sum(row.principal_component for row in schedule), 2) == 100_000
+    assert round(sum(row.profit_component for row in schedule), 2) == 25_000
+
+
 # ---------------- income haircut (para 16.b) ----------------
 
 def test_other_income_counts_at_half():

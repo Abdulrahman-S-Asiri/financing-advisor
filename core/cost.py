@@ -19,7 +19,7 @@ Agents never compute money. They call these functions.
 """
 from __future__ import annotations
 
-from core.models import CostBreakdown, Offer
+from core.models import CostBreakdown, Offer, PaymentScheduleRow
 
 
 def monthly_installment_flat(principal: float, flat_rate_annual: float, months: int) -> float:
@@ -92,3 +92,56 @@ def price_offer(offer: Offer, principal: float, months: int) -> CostBreakdown:
         total_amount_payable=round(installment * months + fee, 2),
         apr_effective=round(apr_effective(principal, installment, months, fee), 4),
     )
+
+
+def payment_schedule_flat(
+    principal: float,
+    flat_rate_annual: float,
+    months: int,
+) -> list[PaymentScheduleRow]:
+    """Month-by-month schedule under flat-rate pricing.
+
+    Flat pricing allocates equal profit over the tenor. The last row absorbs
+    rounding differences so principal and profit totals reconcile exactly.
+    """
+    if months <= 0:
+        raise ValueError("months must be positive")
+
+    total_profit = principal * flat_rate_annual * (months / 12)
+    principal_per_month = principal / months
+    profit_per_month = total_profit / months
+    rows: list[PaymentScheduleRow] = []
+    principal_allocated = 0.0
+    profit_allocated = 0.0
+
+    for month in range(1, months + 1):
+        if month == months:
+            principal_component = round(principal - principal_allocated, 2)
+            profit_component = round(total_profit - profit_allocated, 2)
+            remaining = 0.0
+        else:
+            principal_component = round(principal_per_month, 2)
+            profit_component = round(profit_per_month, 2)
+            principal_allocated = round(principal_allocated + principal_component, 2)
+            profit_allocated = round(profit_allocated + profit_component, 2)
+            remaining = round(max(principal - principal_allocated, 0.0), 2)
+
+        rows.append(
+            PaymentScheduleRow(
+                month=month,
+                installment=round(principal_component + profit_component, 2),
+                principal_component=principal_component,
+                profit_component=profit_component,
+                remaining_principal=remaining,
+            )
+        )
+
+    return rows
+
+
+def payment_schedule(
+    offer: Offer,
+    principal: float,
+    months: int,
+) -> list[PaymentScheduleRow]:
+    return payment_schedule_flat(principal, offer.flat_rate_annual, months)

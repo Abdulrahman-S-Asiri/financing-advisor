@@ -51,6 +51,14 @@ type NearMissSuggestion = {
   status: MatchStatus | null;
 };
 
+type PaymentScheduleRow = {
+  month: number;
+  installment: number;
+  principal_component: number;
+  profit_component: number;
+  remaining_principal: number;
+};
+
 type OfferMatch = {
   offer_id: string;
   institution: string;
@@ -60,6 +68,7 @@ type OfferMatch = {
   monthly_installment: number | null;
   apr_effective: number | null;
   total_amount_payable: number | null;
+  payment_schedule: PaymentScheduleRow[];
   reasons: string[];
   conditions: string[];
   rate_verified: boolean;
@@ -185,6 +194,14 @@ function formatNearMiss(suggestion: NearMissSuggestion) {
     return `تحويل الراتب يفتح هذا المسار${status ? ` بحالة ${status}` : ""}.${suffix}`;
   }
   return suggestion.message;
+}
+
+function schedulePreviewRows(schedule: PaymentScheduleRow[]) {
+  if (schedule.length <= 3) {
+    return schedule;
+  }
+  const middle = schedule[Math.floor(schedule.length / 2)];
+  return [schedule[0], middle, schedule[schedule.length - 1]];
 }
 
 function statusCounts(matches: OfferMatch[]) {
@@ -805,6 +822,21 @@ function OfferCard({ match, compact = false }: { match: OfferMatch; compact?: bo
           <dd>{formatSar(match.total_amount_payable)}</dd>
         </div>
       </dl>
+
+      {match.payment_schedule.length > 0 && (
+        <details className="paymentSchedule">
+          <summary>جدول السداد ({match.payment_schedule.length} شهر)</summary>
+          <div className="schedulePreview">
+            {schedulePreviewRows(match.payment_schedule).map((row) => (
+              <div key={`${match.offer_id}-month-${row.month}`}>
+                <span>شهر {row.month}</span>
+                <strong>{formatSar(row.installment)}</strong>
+                <small>المتبقي {formatSar(row.remaining_principal)}</small>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
 
       {(match.reasons.length > 0 || match.conditions.length > 0) && (
         <div className="reasonBlock">

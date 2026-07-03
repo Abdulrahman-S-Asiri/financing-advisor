@@ -536,6 +536,47 @@ input:focus {
   font-weight: 900;
 }
 
+.paymentSchedule {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.paymentSchedule summary {
+  min-height: 2.75rem;
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 900;
+  padding: 0.75rem 0.9rem;
+}
+
+.schedulePreview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+  border-top: 1px solid var(--line);
+  padding: 0.75rem;
+}
+
+.schedulePreview div {
+  display: grid;
+  gap: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.65rem;
+}
+
+.schedulePreview span,
+.schedulePreview small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.schedulePreview strong {
+  font-size: 0.95rem;
+}
+
 .notesList,
 .nextSteps {
   margin: 1rem 0 0;
@@ -764,6 +805,7 @@ input:focus {
   .formGrid,
   .profileFacts,
   .offerNumbers,
+  .schedulePreview,
   .stageList {
     grid-template-columns: 1fr;
   }

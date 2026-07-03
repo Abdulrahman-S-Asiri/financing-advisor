@@ -106,6 +106,15 @@ class CostBreakdown:
 
 
 @dataclass
+class PaymentScheduleRow:
+    month: int
+    installment: float
+    principal_component: float
+    profit_component: float
+    remaining_principal: float
+
+
+@dataclass
 class DbrDecision:
     passes: bool
     tier: str

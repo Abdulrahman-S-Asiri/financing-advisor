@@ -5,7 +5,7 @@ import uuid
 from dataclasses import dataclass
 
 from agents.events import AgentEvent, AgentEventType, AgentName, EventRecorder
-from core import dbr
+from core import cost, dbr
 from core.eligibility import match_offer, rank_matches
 from core.models import FinancialProfile, MatchResult, MatchStatus, Offer
 from core.profile import Txn, extract_profile
@@ -59,6 +59,18 @@ def serialize_journey(
                 "total_amount_payable": (
                     match.cost.total_amount_payable if match.cost else None
                 ),
+                "payment_schedule": [
+                    row.__dict__
+                    for row in (
+                        cost.payment_schedule(
+                            match.offer,
+                            match.cost.principal,
+                            match.cost.tenor_months,
+                        )
+                        if match.cost
+                        else []
+                    )
+                ],
                 "reasons": match.reasons,
                 "conditions": match.conditions,
                 "rate_verified": match.offer.rate_verified,

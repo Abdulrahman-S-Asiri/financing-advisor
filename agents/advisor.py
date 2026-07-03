@@ -19,6 +19,7 @@ import re
 from dataclasses import asdict
 
 from agents import llm_client
+from core import cost
 from core.models import FinancialProfile, MatchResult
 
 SYSTEM = """You are a Saudi consumer-financing advisor inside a licensed-style \
@@ -55,6 +56,18 @@ def build_context(profile: FinancialProfile, matches: list[MatchResult],
                 "reasons": m.reasons,
                 "conditions": m.conditions,
                 "cost": asdict(m.cost) if m.cost else None,
+                "payment_schedule": [
+                    row.__dict__
+                    for row in (
+                        cost.payment_schedule(
+                            m.offer,
+                            m.cost.principal,
+                            m.cost.tenor_months,
+                        )
+                        if m.cost
+                        else []
+                    )
+                ],
                 "dbr": asdict(m.dbr) if m.dbr else None,
                 "rate_verified": m.offer.rate_verified,
                 "near_miss_suggestions": [
