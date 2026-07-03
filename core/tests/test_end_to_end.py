@@ -46,6 +46,33 @@ def test_journey_borderline_persona_has_mixed_outcomes():
     # Unverified placeholder rates are flagged all the way to the response
     assert all("rate_verified" in m for m in body["matches"])
 
+    # Phase 1 agent foundation: the legacy response is still present, with
+    # ordered events added for the UI timeline.
+    assert body["journey_id"]
+    assert body["events"]
+    assert [event["sequence"] for event in body["events"]] == list(
+        range(1, len(body["events"]) + 1)
+    )
+    assert body["events"][0]["type"] == "agent_started"
+    assert body["events"][-1]["type"] == "journey_completed"
+    assert body["events"][-1]["payload"]["journey_id"] == body["journey_id"]
+
+
+def test_journey_stream_emits_sse_events():
+    c = _client()
+    r = c.post("/journey/connect/stream", json={
+        "persona_id": "sara_strong",
+        "requested_amount": 60_000,
+        "requested_tenor_months": 36,
+        "age": 31,
+    })
+    assert r.status_code == 200, r.text
+    assert r.headers["content-type"].startswith("text/event-stream")
+    assert "event: agent_started" in r.text
+    assert "event: tool_called" in r.text
+    assert "event: journey_completed" in r.text
+    assert '"journey_id"' in r.text
+
 
 def test_journey_rejected_persona_explains_why():
     c = _client()
@@ -73,7 +100,16 @@ def test_unknown_persona_404():
 
 
 def test_advisor_chat_fails_loud_without_key(monkeypatch):
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    for name in (
+        "LLM_PROVIDER",
+        "ANTHROPIC_API_KEY",
+        "ANTHROPIC_MODEL",
+        "ANTHROPIC_BASE_URL",
+        "DEEPSEEK_API_KEY",
+        "DEEPSEEK_MODEL",
+        "DEEPSEEK_BASE_URL",
+    ):
+        monkeypatch.delenv(name, raising=False)
     c = _client()
     c.post("/journey/connect", json={
         "persona_id": "sara_strong",

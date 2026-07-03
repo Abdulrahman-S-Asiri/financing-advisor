@@ -23,13 +23,13 @@ from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from agents import advisor, llm_client
-from core import dbr
-from core.eligibility import match_offer, rank_matches
-from core.models import Category, MatchResult, Offer, Structure
-from core.profile import Txn, extract_profile
+from agents import advisor, llm_client, orchestrator
+from agents.events import AgentEvent
+from core.models import Category, Offer, Structure
+from core.profile import Txn
 
 MOCK_OB_BASE_URL = os.environ.get("MOCK_OB_BASE_URL", "http://127.0.0.1:8100")
 OFFERS_PATH = Path(__file__).resolve().parent.parent / "db" / "seed_offers.json"
@@ -37,6 +37,7 @@ OFFERS_PATH = Path(__file__).resolve().parent.parent / "db" / "seed_offers.json"
 app = FastAPI(title="Financing Advisor API", version="0.1.0")
 
 _sessions: dict[str, dict] = {}   # persona_id -> last journey result (demo-grade)
+_journeys: dict[str, dict] = {}    # journey_id -> journey result (demo-grade)
 
 
 class OffersRepo:
@@ -64,7 +65,8 @@ class ConnectRequest(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    persona_id: str
+    persona_id: str | None = None
+    journey_id: str | None = None
     message: str
 
 
@@ -82,9 +84,7 @@ def list_offers():
     return {"count": len(repo.offers), "offers": [o.__dict__ for o in repo.offers]}
 
 
-@app.post("/journey/connect")
-def journey_connect(req: ConnectRequest):
-    # 1) consent dance against the (mock) AIS service
+def _open_banking_transactions(req: ConnectRequest) -> tuple[str, list[dict]]:
     try:
         with _ob_client() as client:
             consent = client.post("/consents", json={"persona_id": req.persona_id})
@@ -104,60 +104,71 @@ def journey_connect(req: ConnectRequest):
             )
             txns_resp.raise_for_status()
             raw_txns = txns_resp.json()["Data"]["Transaction"]
+            bank = account["servicer"]["name"]
     except httpx.ConnectError as exc:
         raise HTTPException(
             503,
             f"Mock Open Banking service unreachable at {MOCK_OB_BASE_URL}. "
             f"Start it: uvicorn mock_open_banking.main:app --port 8100",
         ) from exc
+    return bank, raw_txns
 
-    # 2) deterministic profile extraction
-    bank = account["servicer"]["name"]
+
+def _store_journey(result: orchestrator.JourneyResult) -> None:
+    session = {
+        "profile": result.profile,
+        "matches": result.matches,
+        "max_affordable": result.max_affordable,
+        "events": result.events,
+        "journey_id": result.journey_id,
+    }
+    _sessions[result.profile.persona_id] = session
+    _journeys[result.journey_id] = session
+
+
+def _run_connected_journey(req: ConnectRequest) -> orchestrator.JourneyResult:
+    bank, raw_txns = _open_banking_transactions(req)
     txns = [Txn.from_ais(t, bank=bank) for t in raw_txns]
-    profile = extract_profile(req.persona_id, txns, age=req.age,
-                              nationality=req.nationality)
+    result = orchestrator.run_journey(
+        persona_id=req.persona_id,
+        txns=txns,
+        offers=repo.offers,
+        requested_amount=req.requested_amount,
+        requested_tenor_months=req.requested_tenor_months,
+        age=req.age,
+        nationality=req.nationality,
+    )
+    _store_journey(result)
+    return result
 
-    # 3) match + price every offer, rank, keep rejection reasons
-    results: list[MatchResult] = [
-        match_offer(o, profile, req.requested_amount, req.requested_tenor_months)
-        for o in repo.offers
-    ]
-    ranked = rank_matches(results)
-    max_afford = dbr.max_affordable_installment(profile)
 
-    _sessions[req.persona_id] = {
-        "profile": profile, "matches": ranked, "max_affordable": max_afford,
-    }
+def _sse(event: AgentEvent) -> str:
+    return (
+        f"event: {event.type.value}\n"
+        f"data: {json.dumps(event.to_dict(), ensure_ascii=False, default=str)}\n\n"
+    )
 
-    return {
-        "profile": {
-            **profile.__dict__,
-            "employment_type": profile.employment_type.value,
-            "total_monthly_income": profile.total_monthly_income,
-        },
-        "max_affordable_new_installment": max_afford,
-        "matches": [
-            {
-                "offer_id": m.offer.id,
-                "institution": m.offer.institution,
-                "product": m.offer.product_name,
-                "structure": m.offer.structure.value,
-                "status": m.status.value,
-                "monthly_installment": m.cost.monthly_installment if m.cost else None,
-                "apr_effective": m.cost.apr_effective if m.cost else None,
-                "total_amount_payable": m.cost.total_amount_payable if m.cost else None,
-                "reasons": m.reasons,
-                "conditions": m.conditions,
-                "rate_verified": m.offer.rate_verified,
-            }
-            for m in ranked
-        ],
-    }
+
+@app.post("/journey/connect")
+def journey_connect(req: ConnectRequest):
+    result = _run_connected_journey(req)
+    return result.response_payload()
+
+
+@app.post("/journey/connect/stream")
+def journey_connect_stream(req: ConnectRequest):
+    result = _run_connected_journey(req)
+    return StreamingResponse(
+        (_sse(event) for event in result.events),
+        media_type="text/event-stream",
+    )
 
 
 @app.post("/advisor/chat")
 def advisor_chat(req: ChatRequest):
-    session = _sessions.get(req.persona_id)
+    session = _journeys.get(req.journey_id) if req.journey_id else None
+    if session is None and req.persona_id:
+        session = _sessions.get(req.persona_id)
     if not session:
         raise HTTPException(400, "Run /journey/connect for this persona first.")
     try:
