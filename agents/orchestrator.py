@@ -11,6 +11,49 @@ from core.models import FinancialProfile, MatchResult, MatchStatus, Offer
 from core.profile import Txn, extract_profile
 
 
+def serialize_match(match: MatchResult) -> dict:
+    return {
+        "offer_id": match.offer.id,
+        "institution": match.offer.institution,
+        "product": match.offer.product_name,
+        "structure": match.offer.structure.value,
+        "status": match.status.value,
+        "monthly_installment": (
+            match.cost.monthly_installment if match.cost else None
+        ),
+        "apr_effective": match.cost.apr_effective if match.cost else None,
+        "total_amount_payable": (
+            match.cost.total_amount_payable if match.cost else None
+        ),
+        "payment_schedule": [
+            row.__dict__
+            for row in (
+                cost.payment_schedule(
+                    match.offer,
+                    match.cost.principal,
+                    match.cost.tenor_months,
+                )
+                if match.cost
+                else []
+            )
+        ],
+        "reasons": match.reasons,
+        "conditions": match.conditions,
+        "rate_verified": match.offer.rate_verified,
+        "near_miss_suggestions": [
+            {
+                "kind": suggestion.kind,
+                "message": suggestion.message,
+                "requested_amount": suggestion.requested_amount,
+                "requested_tenor_months": suggestion.requested_tenor_months,
+                "monthly_installment": suggestion.monthly_installment,
+                "status": suggestion.status.value if suggestion.status else None,
+            }
+            for suggestion in match.near_miss_suggestions
+        ],
+    }
+
+
 @dataclass
 class JourneyResult:
     journey_id: str
@@ -45,49 +88,7 @@ def serialize_journey(
             "total_monthly_income": profile.total_monthly_income,
         },
         "max_affordable_new_installment": max_affordable,
-        "matches": [
-            {
-                "offer_id": match.offer.id,
-                "institution": match.offer.institution,
-                "product": match.offer.product_name,
-                "structure": match.offer.structure.value,
-                "status": match.status.value,
-                "monthly_installment": (
-                    match.cost.monthly_installment if match.cost else None
-                ),
-                "apr_effective": match.cost.apr_effective if match.cost else None,
-                "total_amount_payable": (
-                    match.cost.total_amount_payable if match.cost else None
-                ),
-                "payment_schedule": [
-                    row.__dict__
-                    for row in (
-                        cost.payment_schedule(
-                            match.offer,
-                            match.cost.principal,
-                            match.cost.tenor_months,
-                        )
-                        if match.cost
-                        else []
-                    )
-                ],
-                "reasons": match.reasons,
-                "conditions": match.conditions,
-                "rate_verified": match.offer.rate_verified,
-                "near_miss_suggestions": [
-                    {
-                        "kind": suggestion.kind,
-                        "message": suggestion.message,
-                        "requested_amount": suggestion.requested_amount,
-                        "requested_tenor_months": suggestion.requested_tenor_months,
-                        "monthly_installment": suggestion.monthly_installment,
-                        "status": suggestion.status.value if suggestion.status else None,
-                    }
-                    for suggestion in match.near_miss_suggestions
-                ],
-            }
-            for match in matches
-        ],
+        "matches": [serialize_match(match) for match in matches],
         "suggested_questions": suggested_questions(matches),
     }
 

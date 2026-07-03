@@ -139,6 +139,54 @@ def test_application_simulation_lifecycle():
     assert len(final["history"]) == 4
 
 
+def test_advisor_tools_simulate_detail_and_schedule():
+    c = _client()
+    journey = c.post("/journey/connect", json={
+        "persona_id": "sara_strong",
+        "requested_amount": 60_000,
+        "requested_tenor_months": 36,
+        "age": 31,
+    }).json()
+    conditional = next(
+        match for match in journey["matches"] if match["status"] == "conditional"
+    )
+
+    simulated = c.post("/advisor/tools/simulate", json={
+        "journey_id": journey["journey_id"],
+        "salary_transfer": True,
+    })
+    assert simulated.status_code == 200, simulated.text
+    simulated_body = simulated.json()
+    assert simulated_body["tool"] == "simulate"
+    assert simulated_body["event"]["agent"] == "advisor"
+    updated = next(
+        match for match in simulated_body["matches"]
+        if match["offer_id"] == conditional["offer_id"]
+    )
+    assert updated["status"] == "eligible"
+    assert updated["monthly_installment"] == conditional["monthly_installment"]
+
+    detail = c.get(
+        f"/advisor/tools/{journey['journey_id']}/offers/{conditional['offer_id']}"
+    )
+    assert detail.status_code == 200, detail.text
+    detail_body = detail.json()
+    assert detail_body["tool"] == "get_offer_detail"
+    assert detail_body["offer"]["offer_id"] == conditional["offer_id"]
+    assert detail_body["offer"]["offer"]["salary_transfer_required"] is True
+    assert "dbr" in detail_body["offer"]
+
+    schedule = c.get(
+        "/advisor/tools/"
+        f"{journey['journey_id']}/offers/{conditional['offer_id']}/payment-schedule"
+    )
+    assert schedule.status_code == 200, schedule.text
+    schedule_body = schedule.json()
+    assert schedule_body["tool"] == "get_payment_schedule"
+    assert schedule_body["payment_schedule"][0]["month"] == 1
+    assert len(schedule_body["payment_schedule"]) == 36
+
+
 def test_advisor_chat_fails_loud_without_key(monkeypatch):
     for name in (
         "LLM_PROVIDER",

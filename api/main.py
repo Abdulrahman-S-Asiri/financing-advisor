@@ -26,8 +26,14 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from agents import advisor, application as application_agent, llm_client, orchestrator
-from agents.events import AgentEvent
+from agents import (
+    advisor,
+    advisor_tools,
+    application as application_agent,
+    llm_client,
+    orchestrator,
+)
+from agents.events import AgentEvent, AgentEventType, AgentName
 from core.models import Category, Offer, Structure
 from core.profile import Txn
 
@@ -69,6 +75,13 @@ class ChatRequest(BaseModel):
     persona_id: str | None = None
     journey_id: str | None = None
     message: str
+
+
+class AdvisorSimulateRequest(BaseModel):
+    journey_id: str
+    requested_amount: float | None = Field(default=None, gt=0)
+    requested_tenor_months: int | None = Field(default=None, gt=0)
+    salary_transfer: bool = False
 
 
 class ApplicationDraftRequest(BaseModel):
@@ -120,13 +133,19 @@ def _open_banking_transactions(req: ConnectRequest) -> tuple[str, list[dict]]:
     return bank, raw_txns
 
 
-def _store_journey(result: orchestrator.JourneyResult) -> None:
+def _store_journey(
+    result: orchestrator.JourneyResult,
+    requested_amount: float,
+    requested_tenor_months: int,
+) -> None:
     session = {
         "profile": result.profile,
         "matches": result.matches,
         "max_affordable": result.max_affordable,
         "events": result.events,
         "journey_id": result.journey_id,
+        "requested_amount": requested_amount,
+        "requested_tenor_months": requested_tenor_months,
     }
     _sessions[result.profile.persona_id] = session
     _journeys[result.journey_id] = session
@@ -144,7 +163,7 @@ def _run_connected_journey(req: ConnectRequest) -> orchestrator.JourneyResult:
         age=req.age,
         nationality=req.nationality,
     )
-    _store_journey(result)
+    _store_journey(result, req.requested_amount, req.requested_tenor_months)
     return result
 
 
@@ -187,10 +206,111 @@ def advisor_chat(req: ChatRequest):
     return {"reply": reply}
 
 
-def _journey_match(journey_id: str, offer_id: str):
+def _journey_session(journey_id: str) -> dict:
     session = _journeys.get(journey_id)
     if not session:
         raise HTTPException(404, "Unknown journey_id.")
+    return session
+
+
+def _record_advisor_tool(session: dict, tool: str, payload: dict) -> AgentEvent:
+    messages = {
+        "simulate": "استدعاء أداة محاكاة السيناريو.",
+        "get_offer_detail": "استدعاء أداة تفاصيل العرض.",
+        "get_payment_schedule": "استدعاء أداة جدول السداد.",
+    }
+    event = AgentEvent(
+        journey_id=session["journey_id"],
+        sequence=len(session["events"]) + 1,
+        type=AgentEventType.TOOL_CALLED,
+        agent=AgentName.ADVISOR,
+        message_ar=messages.get(tool, "استدعاء أداة المستشار."),
+        payload={"tool": tool, **payload},
+    )
+    session["events"].append(event)
+    return event
+
+
+@app.post("/advisor/tools/simulate")
+def advisor_tool_simulate(req: AdvisorSimulateRequest):
+    session = _journey_session(req.journey_id)
+    requested_amount = req.requested_amount or session["requested_amount"]
+    requested_tenor_months = (
+        req.requested_tenor_months or session["requested_tenor_months"]
+    )
+    try:
+        payload = advisor_tools.simulate(
+            session["profile"],
+            repo.offers,
+            requested_amount,
+            requested_tenor_months,
+            salary_transfer=req.salary_transfer,
+        )
+    except advisor_tools.AdvisorToolError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    event = _record_advisor_tool(
+        session,
+        "simulate",
+        {
+            "requested_amount": requested_amount,
+            "requested_tenor_months": requested_tenor_months,
+            "salary_transfer": req.salary_transfer,
+        },
+    )
+    return {
+        "journey_id": req.journey_id,
+        "tool": "simulate",
+        "event": event.to_dict(),
+        **payload,
+    }
+
+
+@app.get("/advisor/tools/{journey_id}/offers/{offer_id}")
+def advisor_tool_offer_detail(journey_id: str, offer_id: str):
+    session = _journey_session(journey_id)
+    try:
+        detail = advisor_tools.get_offer_detail(session["matches"], offer_id)
+    except advisor_tools.AdvisorToolError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+    event = _record_advisor_tool(
+        session,
+        "get_offer_detail",
+        {"offer_id": offer_id},
+    )
+    return {
+        "journey_id": journey_id,
+        "tool": "get_offer_detail",
+        "event": event.to_dict(),
+        "offer": detail,
+    }
+
+
+@app.get("/advisor/tools/{journey_id}/offers/{offer_id}/payment-schedule")
+def advisor_tool_payment_schedule(journey_id: str, offer_id: str):
+    session = _journey_session(journey_id)
+    try:
+        schedule = advisor_tools.get_payment_schedule(session["matches"], offer_id)
+    except advisor_tools.AdvisorToolError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+    event = _record_advisor_tool(
+        session,
+        "get_payment_schedule",
+        {"offer_id": offer_id, "row_count": len(schedule)},
+    )
+    return {
+        "journey_id": journey_id,
+        "tool": "get_payment_schedule",
+        "event": event.to_dict(),
+        "offer_id": offer_id,
+        "payment_schedule": schedule,
+    }
+
+
+def _journey_match(journey_id: str, offer_id: str):
+    session = _journey_session(journey_id)
     for match in session["matches"]:
         if match.offer.id == offer_id:
             return session, match
