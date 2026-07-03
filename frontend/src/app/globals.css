@@ -693,6 +693,73 @@ input:focus {
   border-color: var(--teal);
 }
 
+.applicationPanel {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+  border: 1px solid rgba(39, 86, 163, 0.18);
+  border-radius: 8px;
+  background: #f7faff;
+  padding: 1rem;
+}
+
+.applicationSummary {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.applicationSummary strong {
+  color: var(--blue);
+}
+
+.applicationSummary p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.applicationTimeline {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.applicationTimeline p {
+  margin: 0;
+  border-right: 3px solid var(--blue);
+  color: var(--muted);
+  padding-right: 0.65rem;
+  line-height: 1.6;
+}
+
+.applicationTimeline span {
+  display: inline-block;
+  margin-left: 0.4rem;
+  color: var(--blue);
+  font-weight: 900;
+}
+
+.applicationActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.applicationActions button {
+  min-height: 2.5rem;
+  border: 0;
+  border-radius: 8px;
+  background: var(--blue);
+  color: #ffffff;
+  font-weight: 900;
+  padding: 0.55rem 0.9rem;
+}
+
+.applicationActions span {
+  color: var(--blue);
+  font-weight: 900;
+}
+
 .deliverGrid {
   grid-template-columns: minmax(0, 1.05fr) minmax(20rem, 0.95fr);
 }

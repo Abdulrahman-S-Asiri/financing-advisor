@@ -88,6 +88,28 @@ type ChatMessage = {
   text: string;
 };
 
+type ApplicationHistoryItem = {
+  status: string;
+  message_ar: string;
+  created_at: string;
+};
+
+type ApplicationRecord = {
+  application_id: string;
+  journey_id: string;
+  offer_id: string;
+  status: string;
+  summary: {
+    institution: string;
+    product: string;
+    monthly_installment: number | null;
+    total_amount_payable: number | null;
+    simulation_notice_ar: string;
+  };
+  history: ApplicationHistoryItem[];
+  simulation: boolean;
+};
+
 const stages: Array<{ key: StageKey; label: string; title: string; metric: string }> = [
   { key: "discover", label: "اكتشف", title: "بيانات العميل والطلب", metric: "مدخلات" },
   { key: "define", label: "حدد", title: "تعريف القدرة المالية", metric: "تحليل" },
@@ -154,6 +176,14 @@ const eventLabels: Record<string, string> = {
   agent_completed: "اكتمل",
   error: "خطأ",
   journey_completed: "انتهت الرحلة",
+};
+
+const applicationStatusLabels: Record<string, string> = {
+  draft: "مسودة",
+  submitted: "مرسل",
+  under_review: "تحت المراجعة",
+  approved: "مقبول",
+  declined: "مرفوض",
 };
 
 function formatSar(value: number | null | undefined) {
@@ -229,6 +259,9 @@ export default function Home() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatError, setChatError] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [application, setApplication] = useState<ApplicationRecord | null>(null);
+  const [applicationError, setApplicationError] = useState("");
+  const [isApplicationLoading, setIsApplicationLoading] = useState(false);
 
   const counts = useMemo(() => statusCounts(journey?.matches ?? []), [journey]);
 
@@ -289,6 +322,8 @@ export default function Home() {
       setFilter("all");
       setChatMessages([]);
       setChatError("");
+      setApplication(null);
+      setApplicationError("");
       setActiveStage("define");
     } catch (error) {
       setJourneyError(error instanceof Error ? error.message : "حدث خطأ غير متوقع.");
@@ -332,6 +367,55 @@ export default function Home() {
       setChatError(error instanceof Error ? error.message : "المستشار غير متاح حالياً.");
     } finally {
       setIsChatLoading(false);
+    }
+  }
+
+  async function createApplication(offerId: string) {
+    if (!journey) {
+      return;
+    }
+    setIsApplicationLoading(true);
+    setApplicationError("");
+    try {
+      const response = await fetch("/backend/applications/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          journey_id: journey.journey_id,
+          offer_id: offerId,
+        }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.detail ?? "تعذر تجهيز الطلب التجريبي.");
+      }
+      setApplication((await response.json()) as ApplicationRecord);
+    } catch (error) {
+      setApplicationError(error instanceof Error ? error.message : "تعذر تجهيز الطلب التجريبي.");
+    } finally {
+      setIsApplicationLoading(false);
+    }
+  }
+
+  async function updateApplication(action: "submit" | "advance") {
+    if (!application) {
+      return;
+    }
+    setIsApplicationLoading(true);
+    setApplicationError("");
+    try {
+      const response = await fetch(`/backend/applications/${application.application_id}/${action}`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.detail ?? "تعذر تحديث حالة الطلب.");
+      }
+      setApplication((await response.json()) as ApplicationRecord);
+    } catch (error) {
+      setApplicationError(error instanceof Error ? error.message : "تعذر تحديث حالة الطلب.");
+    } finally {
+      setIsApplicationLoading(false);
     }
   }
 
@@ -440,8 +524,14 @@ export default function Home() {
             chatInput={chatInput}
             chatMessages={chatMessages}
             isChatLoading={isChatLoading}
+            application={application}
+            applicationError={applicationError}
+            isApplicationLoading={isApplicationLoading}
             journey={journey}
             recommendedMatch={recommendedMatch}
+            onApplicationAdvance={() => updateApplication("advance")}
+            onApplicationCreate={(offerId) => createApplication(offerId)}
+            onApplicationSubmit={() => updateApplication("submit")}
             onChatInputChange={setChatInput}
             onChatSubmit={submitChat}
           />
@@ -703,21 +793,33 @@ function DevelopStage({
 }
 
 function DeliverStage({
+  application,
+  applicationError,
   chatError,
   chatInput,
   chatMessages,
+  isApplicationLoading,
   isChatLoading,
   journey,
   recommendedMatch,
+  onApplicationAdvance,
+  onApplicationCreate,
+  onApplicationSubmit,
   onChatInputChange,
   onChatSubmit,
 }: {
+  application: ApplicationRecord | null;
+  applicationError: string;
   chatError: string;
   chatInput: string;
   chatMessages: ChatMessage[];
+  isApplicationLoading: boolean;
   isChatLoading: boolean;
   journey: JourneyResponse | null;
   recommendedMatch: OfferMatch | null;
+  onApplicationAdvance: () => void;
+  onApplicationCreate: (offerId: string) => void;
+  onApplicationSubmit: () => void;
   onChatInputChange: (value: string) => void;
   onChatSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
@@ -747,6 +849,16 @@ function DeliverStage({
           <li>مطابقة المتطلبات مع جهة العمل وتحويل الراتب إن كان شرطاً.</li>
           <li>حفظ أسباب الرفض لشرح القرار للعميل أو لجنة التحكيم.</li>
         </ol>
+
+        <ApplicationTracker
+          application={application}
+          error={applicationError}
+          isLoading={isApplicationLoading}
+          recommendedMatch={recommendedMatch}
+          onAdvance={onApplicationAdvance}
+          onCreate={onApplicationCreate}
+          onSubmit={onApplicationSubmit}
+        />
       </section>
 
       <section className="advisorPanel">
@@ -782,6 +894,81 @@ function DeliverStage({
         </form>
       </section>
     </div>
+  );
+}
+
+function ApplicationTracker({
+  application,
+  error,
+  isLoading,
+  recommendedMatch,
+  onAdvance,
+  onCreate,
+  onSubmit,
+}: {
+  application: ApplicationRecord | null;
+  error: string;
+  isLoading: boolean;
+  recommendedMatch: OfferMatch | null;
+  onAdvance: () => void;
+  onCreate: (offerId: string) => void;
+  onSubmit: () => void;
+}) {
+  const isFinal = application?.status === "approved" || application?.status === "declined";
+
+  return (
+    <section className="applicationPanel">
+      <div className="panelHeading">
+        <div>
+          <p className="eyebrow">Application</p>
+          <h3>طلب تجريبي</h3>
+        </div>
+        <span className="warningBadge">محاكاة</span>
+      </div>
+
+      {!application && (
+        <button
+          className="secondaryButton"
+          disabled={!recommendedMatch || isLoading}
+          type="button"
+          onClick={() => recommendedMatch && onCreate(recommendedMatch.offer_id)}
+        >
+          {isLoading ? "جاري التجهيز..." : "جهز طلب العرض"}
+        </button>
+      )}
+
+      {application && (
+        <>
+          <div className="applicationSummary">
+            <strong>{applicationStatusLabels[application.status] ?? application.status}</strong>
+            <p>{application.summary.simulation_notice_ar}</p>
+          </div>
+          <div className="applicationTimeline">
+            {application.history.map((item) => (
+              <p key={`${item.status}-${item.created_at}`}>
+                <span>{applicationStatusLabels[item.status] ?? item.status}</span>
+                {item.message_ar}
+              </p>
+            ))}
+          </div>
+          <div className="applicationActions">
+            {application.status === "draft" && (
+              <button disabled={isLoading} type="button" onClick={onSubmit}>
+                {isLoading ? "..." : "إرسال المحاكاة"}
+              </button>
+            )}
+            {(application.status === "submitted" || application.status === "under_review") && (
+              <button disabled={isLoading} type="button" onClick={onAdvance}>
+                {isLoading ? "..." : "تحديث الحالة"}
+              </button>
+            )}
+            {isFinal && <span>{applicationStatusLabels[application.status]}</span>}
+          </div>
+        </>
+      )}
+
+      {error && <p className="errorBanner">{error}</p>}
+    </section>
   );
 }
 

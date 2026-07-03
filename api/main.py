@@ -26,7 +26,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from agents import advisor, llm_client, orchestrator
+from agents import advisor, application as application_agent, llm_client, orchestrator
 from agents.events import AgentEvent
 from core.models import Category, Offer, Structure
 from core.profile import Txn
@@ -38,6 +38,7 @@ app = FastAPI(title="Financing Advisor API", version="0.1.0")
 
 _sessions: dict[str, dict] = {}   # persona_id -> last journey result (demo-grade)
 _journeys: dict[str, dict] = {}    # journey_id -> journey result (demo-grade)
+_applications: dict[str, application_agent.ApplicationRecord] = {}
 
 
 class OffersRepo:
@@ -68,6 +69,11 @@ class ChatRequest(BaseModel):
     persona_id: str | None = None
     journey_id: str | None = None
     message: str
+
+
+class ApplicationDraftRequest(BaseModel):
+    journey_id: str
+    offer_id: str
 
 
 def _ob_client() -> httpx.Client:
@@ -179,3 +185,56 @@ def advisor_chat(req: ChatRequest):
     except llm_client.LLMNotConfigured as exc:
         raise HTTPException(503, str(exc)) from exc
     return {"reply": reply}
+
+
+def _journey_match(journey_id: str, offer_id: str):
+    session = _journeys.get(journey_id)
+    if not session:
+        raise HTTPException(404, "Unknown journey_id.")
+    for match in session["matches"]:
+        if match.offer.id == offer_id:
+            return session, match
+    raise HTTPException(404, "Offer not found in this journey.")
+
+
+@app.post("/applications/draft")
+def application_draft(req: ApplicationDraftRequest):
+    session, match = _journey_match(req.journey_id, req.offer_id)
+    try:
+        record = application_agent.create_draft(
+            req.journey_id,
+            session["profile"],
+            match,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    _applications[record.application_id] = record
+    return record.to_dict()
+
+
+@app.get("/applications/{application_id}")
+def application_detail(application_id: str):
+    record = _applications.get(application_id)
+    if not record:
+        raise HTTPException(404, "Unknown application_id.")
+    return record.to_dict()
+
+
+@app.post("/applications/{application_id}/submit")
+def application_submit(application_id: str):
+    record = _applications.get(application_id)
+    if not record:
+        raise HTTPException(404, "Unknown application_id.")
+    application_agent.submit(record)
+    return record.to_dict()
+
+
+@app.post("/applications/{application_id}/advance")
+def application_advance(application_id: str):
+    record = _applications.get(application_id)
+    if not record:
+        raise HTTPException(404, "Unknown application_id.")
+    session, match = _journey_match(record.journey_id, record.offer_id)
+    final_status = application_agent.final_status_for(session["profile"], match)
+    application_agent.advance(record, final_status)
+    return record.to_dict()

@@ -102,6 +102,39 @@ def test_unknown_persona_404():
     assert r.status_code == 404
 
 
+def test_application_simulation_lifecycle():
+    c = _client()
+    journey = c.post("/journey/connect", json={
+        "persona_id": "sara_strong",
+        "requested_amount": 60_000,
+        "requested_tenor_months": 36,
+        "age": 31,
+    }).json()
+    offer = next(
+        match for match in journey["matches"]
+        if match["status"] in ("eligible", "conditional", "policy_review")
+    )
+
+    draft = c.post("/applications/draft", json={
+        "journey_id": journey["journey_id"],
+        "offer_id": offer["offer_id"],
+    })
+    assert draft.status_code == 200, draft.text
+    body = draft.json()
+    assert body["simulation"] is True
+    assert body["status"] == "draft"
+
+    submitted = c.post(f"/applications/{body['application_id']}/submit").json()
+    assert submitted["status"] == "submitted"
+
+    reviewing = c.post(f"/applications/{body['application_id']}/advance").json()
+    assert reviewing["status"] == "under_review"
+
+    final = c.post(f"/applications/{body['application_id']}/advance").json()
+    assert final["status"] in ("approved", "declined")
+    assert len(final["history"]) == 4
+
+
 def test_advisor_chat_fails_loud_without_key(monkeypatch):
     for name in (
         "LLM_PROVIDER",
