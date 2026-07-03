@@ -26,6 +26,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from statistics import mean, pstdev
+from typing import Callable
 
 from core.models import EmploymentType, FinancialProfile
 
@@ -36,6 +37,15 @@ FINANCE_KEYWORDS = (
 BNPL_KEYWORDS = ("TABBY", "TAMARA")
 MORTGAGE_KEYWORDS = ("REDF", "MORTGAGE", "عقاري", "SAKANI")
 GOV_EMPLOYER_HINTS = ("MINISTRY", "وزارة", "GOV", "MUDAD-GOV")
+ProfileCategorizer = Callable[[str, bool], str | None]
+VALID_CATEGORIES = {
+    "salary",
+    "other_income",
+    "salary_linked_obligation",
+    "other_obligation",
+    "real_estate_obligation",
+    "ignore",
+}
 
 
 @dataclass
@@ -60,6 +70,20 @@ class Txn:
 
 def _has(desc: str, keywords: tuple[str, ...]) -> bool:
     return any(k in desc for k in keywords)
+
+
+def _categorize(
+    categorizer: ProfileCategorizer | None,
+    description: str,
+    credit: bool,
+) -> str | None:
+    if categorizer is None:
+        return None
+    category = categorizer(description, credit)
+    if category is None:
+        return None
+    category = category.strip().lower()
+    return category if category in VALID_CATEGORIES else None
 
 
 def _recurring_monthly(txns: list[Txn]) -> dict[str, list[Txn]]:
@@ -126,6 +150,7 @@ def extract_profile(
     txns: list[Txn],
     age: int = 30,
     nationality: str = "saudi",
+    categorizer: ProfileCategorizer | None = None,
 ) -> FinancialProfile:
     months_observed = len({t.booking_month for t in txns})
     notes: list[str] = []
@@ -140,7 +165,8 @@ def extract_profile(
     salary_items: list[Txn] = []
     for items in credit_streams.values():
         avg = mean(t.amount for t in items)
-        rank = (_has(items[0].description, SALARY_KEYWORDS), avg)
+        category = _categorize(categorizer, items[0].description, credit=True)
+        rank = (_has(items[0].description, SALARY_KEYWORDS) or category == "salary", avg)
         if rank > best_rank:
             best_rank = rank
             salary_amount, salary_bank = avg, items[0].bank
@@ -161,7 +187,8 @@ def extract_profile(
         avg = mean(t.amount for t in items)
         if abs(avg - salary_amount) < 1e-6 and items[0].bank == salary_bank:
             continue
-        if _has(items[0].description, ("RENT", "ايجار", "DIVIDEND")):
+        category = _categorize(categorizer, items[0].description, credit=True)
+        if _has(items[0].description, ("RENT", "ايجار", "DIVIDEND")) or category == "other_income":
             other_income += avg
             notes.append(f"Other periodic income detected (~SAR {avg:,.0f}/mo), counted at 50%.")
 
@@ -172,7 +199,12 @@ def extract_profile(
     for key, items in debit_streams.items():
         avg = mean(t.amount for t in items)
         desc, bank = items[0].description, items[0].bank
+        category = _categorize(categorizer, desc, credit=False)
         if _has(desc, MORTGAGE_KEYWORDS):
+            re_obl += avg
+            for item in items:
+                monthly_obligations[item.booking_month] += item.amount
+        elif category == "real_estate_obligation":
             re_obl += avg
             for item in items:
                 monthly_obligations[item.booking_month] += item.amount
@@ -181,6 +213,14 @@ def extract_profile(
                 salary_linked += avg
             else:
                 other_obl += avg
+            for item in items:
+                monthly_obligations[item.booking_month] += item.amount
+        elif category == "salary_linked_obligation":
+            salary_linked += avg
+            for item in items:
+                monthly_obligations[item.booking_month] += item.amount
+        elif category == "other_obligation":
+            other_obl += avg
             for item in items:
                 monthly_obligations[item.booking_month] += item.amount
         elif _has(desc, BNPL_KEYWORDS):
