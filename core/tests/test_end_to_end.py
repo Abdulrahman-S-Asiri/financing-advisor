@@ -31,6 +31,9 @@ def test_journey_borderline_persona_has_mixed_outcomes():
     # Profile extraction found the seeded facts
     assert abs(body["profile"]["gross_salary"] - 9_500) < 1
     assert body["profile"]["salary_linked_obligations"] > 0
+    assert body["profile"]["salary_stability_score"] >= 0.8
+    assert body["profile"]["obligation_trend"] == "stable"
+    assert body["profile"]["confidence_level"] == "high"
     assert body["max_affordable_new_installment"] > 0
 
     statuses = {m["status"] for m in body["matches"]}

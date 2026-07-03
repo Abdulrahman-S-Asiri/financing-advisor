@@ -28,6 +28,9 @@ type FinancialProfile = {
   real_estate_obligations: number;
   months_observed: number;
   salary_bank: string;
+  salary_stability_score: number;
+  obligation_trend: string;
+  confidence_level: string;
   detection_notes: string[];
   total_monthly_income: number;
 };
@@ -184,6 +187,20 @@ const applicationStatusLabels: Record<string, string> = {
   under_review: "تحت المراجعة",
   approved: "مقبول",
   declined: "مرفوض",
+};
+
+const confidenceLabels: Record<string, string> = {
+  high: "عالية",
+  medium: "متوسطة",
+  low: "منخفضة",
+};
+
+const trendLabels: Record<string, string> = {
+  rising: "تصاعدي",
+  falling: "تنازلي",
+  stable: "مستقر",
+  none: "لا توجد التزامات",
+  unknown: "غير واضح",
 };
 
 function formatSar(value: number | null | undefined) {
@@ -676,6 +693,7 @@ function DefineStage({
           label="القسط الجديد المتاح"
           value={formatSar(journey.max_affordable_new_installment)}
         />
+        <MetricCard label="ثبات الراتب" value={formatPercent(profile.salary_stability_score)} />
       </section>
 
       <AgentTimeline events={journey.events} />
@@ -702,6 +720,14 @@ function DefineStage({
           <div>
             <dt>الأشهر المرصودة</dt>
             <dd>{profile.months_observed}</dd>
+          </div>
+          <div>
+            <dt>الثقة</dt>
+            <dd>{confidenceLabels[profile.confidence_level] ?? profile.confidence_level}</dd>
+          </div>
+          <div>
+            <dt>اتجاه الالتزامات</dt>
+            <dd>{trendLabels[profile.obligation_trend] ?? profile.obligation_trend}</dd>
           </div>
         </dl>
         {profile.detection_notes.length > 0 && (

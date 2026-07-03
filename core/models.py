@@ -84,6 +84,9 @@ class FinancialProfile:
     mohousing_or_redf_beneficiary: bool = False
     months_observed: int = 0
     salary_bank: str = ""
+    salary_stability_score: float = 0.0
+    obligation_trend: str = "unknown"
+    confidence_level: str = "low"
     detection_notes: list[str] = field(default_factory=list)
 
     @property

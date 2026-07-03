@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from statistics import mean
+from statistics import mean, pstdev
 
 from core.models import EmploymentType, FinancialProfile
 
@@ -84,6 +84,43 @@ def _recurring_monthly(txns: list[Txn]) -> dict[str, list[Txn]]:
     return stable
 
 
+def _salary_stability_score(items: list[Txn]) -> float:
+    if not items:
+        return 0.0
+    avg = mean(t.amount for t in items)
+    if avg <= 0:
+        return 0.0
+    variation = pstdev(t.amount for t in items) / avg
+    return round(max(0.0, 1 - min(variation / 0.10, 1.0)), 2)
+
+
+def _confidence_level(months_observed: int, salary_amount: float, stability_score: float) -> str:
+    if salary_amount <= 0 or months_observed < 3:
+        return "low"
+    if months_observed >= 6 and stability_score >= 0.8:
+        return "high"
+    return "medium"
+
+
+def _obligation_trend(monthly_obligations: dict[str, float]) -> str:
+    if not monthly_obligations:
+        return "none"
+    months = sorted(monthly_obligations)
+    if len(months) < 4:
+        return "unknown"
+    midpoint = len(months) // 2
+    first = mean(monthly_obligations[m] for m in months[:midpoint])
+    second = mean(monthly_obligations[m] for m in months[midpoint:])
+    if first <= 0:
+        return "rising" if second > 0 else "stable"
+    change = (second - first) / first
+    if change > 0.10:
+        return "rising"
+    if change < -0.10:
+        return "falling"
+    return "stable"
+
+
 def extract_profile(
     persona_id: str,
     txns: list[Txn],
@@ -100,6 +137,7 @@ def extract_profile(
     credit_streams = _recurring_monthly([t for t in txns if t.credit])
     best_rank = (False, 0.0)
     salary_amount, salary_bank, salary_desc = 0.0, "", ""
+    salary_items: list[Txn] = []
     for items in credit_streams.values():
         avg = mean(t.amount for t in items)
         rank = (_has(items[0].description, SALARY_KEYWORDS), avg)
@@ -107,6 +145,7 @@ def extract_profile(
             best_rank = rank
             salary_amount, salary_bank = avg, items[0].bank
             salary_desc = items[0].description
+            salary_items = items
     if salary_amount == 0.0:
         notes.append("No stable salary stream detected; treat profile as unverified.")
 
@@ -129,19 +168,28 @@ def extract_profile(
     # ---- obligations ---------------------------------------------------
     debit_streams = _recurring_monthly([t for t in txns if not t.credit])
     salary_linked = other_obl = re_obl = 0.0
+    monthly_obligations: dict[str, float] = defaultdict(float)
     for key, items in debit_streams.items():
         avg = mean(t.amount for t in items)
         desc, bank = items[0].description, items[0].bank
         if _has(desc, MORTGAGE_KEYWORDS):
             re_obl += avg
+            for item in items:
+                monthly_obligations[item.booking_month] += item.amount
         elif _has(desc, FINANCE_KEYWORDS):
             if bank == salary_bank:
                 salary_linked += avg
             else:
                 other_obl += avg
+            for item in items:
+                monthly_obligations[item.booking_month] += item.amount
         elif _has(desc, BNPL_KEYWORDS):
             other_obl += avg
+            for item in items:
+                monthly_obligations[item.booking_month] += item.amount
             notes.append(f"Recurring BNPL commitment detected (~SAR {avg:,.0f}/mo).")
+
+    stability_score = _salary_stability_score(salary_items)
 
     return FinancialProfile(
         persona_id=persona_id,
@@ -156,5 +204,8 @@ def extract_profile(
         real_estate_obligations=round(re_obl, 2),
         months_observed=months_observed,
         salary_bank=salary_bank,
+        salary_stability_score=stability_score,
+        obligation_trend=_obligation_trend(monthly_obligations),
+        confidence_level=_confidence_level(months_observed, salary_amount, stability_score),
         detection_notes=notes,
     )
