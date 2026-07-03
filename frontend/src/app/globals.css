@@ -1,0 +1,692 @@
+:root {
+  --background: #f6f7f9;
+  --surface: #ffffff;
+  --surface-soft: #eef6f4;
+  --ink: #18201e;
+  --muted: #64706d;
+  --line: #dbe3e0;
+  --teal: #0e766e;
+  --teal-dark: #075c55;
+  --blue: #2756a3;
+  --green: #198754;
+  --amber: #b26b00;
+  --red: #b42318;
+  --shadow: 0 18px 45px rgba(24, 32, 30, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--background);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    linear-gradient(180deg, rgba(14, 118, 110, 0.08), transparent 34rem),
+    var(--background);
+  color: var(--ink);
+  font-family:
+    "Segoe UI",
+    Tahoma,
+    Arial,
+    sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.appShell {
+  display: grid;
+  grid-template-columns: 19rem minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.stageRail {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  min-height: 100vh;
+  padding: 1.5rem;
+  background: #14221f;
+  color: #f8fbfa;
+}
+
+.brandBlock,
+.topbar,
+.panelHeading,
+.comparisonHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.brandBlock {
+  justify-content: flex-start;
+}
+
+.brandMark {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: #0e766e;
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.eyebrow {
+  margin: 0 0 0.35rem;
+  color: var(--teal);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.stageRail .eyebrow {
+  color: #9ee1d7;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 0;
+  font-size: 1.15rem;
+}
+
+h2 {
+  margin-bottom: 0;
+  font-size: 1.8rem;
+}
+
+h3 {
+  margin-bottom: 0;
+  font-size: 1.25rem;
+}
+
+.stageList {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.stageButton {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+  min-height: 4.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  text-align: right;
+}
+
+.stageButton small,
+.stageButton strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.stageButton small {
+  margin-top: 0.15rem;
+  color: #bed2ce;
+}
+
+.stageActive {
+  border-color: #91d8cf;
+  background: rgba(14, 118, 110, 0.32);
+}
+
+.stageDiamond {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  background: #ffffff;
+  color: #14221f;
+  font-weight: 800;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.stageDiamond {
+  line-height: 2rem;
+}
+
+.railSummary {
+  margin-top: auto;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.railSummary span,
+.metricCard span,
+.profileFacts dt,
+.offerNumbers dt {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.stageRail .railSummary span {
+  color: #bed2ce;
+}
+
+.railSummary strong {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 2rem;
+}
+
+.workspace {
+  display: grid;
+  align-content: start;
+  gap: 1.25rem;
+  padding: 1.5rem;
+}
+
+.topbar {
+  padding-bottom: 0.6rem;
+}
+
+.topbarStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.topbarStats span,
+.connectionPill,
+.warningBadge,
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.diamondMap {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.diamondStep {
+  display: grid;
+  place-items: center;
+  min-height: 7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.diamondStep span,
+.diamondStep strong {
+  display: block;
+}
+
+.diamondStep span {
+  margin-bottom: 0.3rem;
+  font-size: 1.35rem;
+}
+
+.diamondStep strong {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.diamondStepActive {
+  border-color: var(--teal);
+  background: var(--surface-soft);
+}
+
+.stageContent,
+.deliverGrid {
+  display: grid;
+  gap: 1rem;
+}
+
+.personaGrid,
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.personaCard,
+.metricCard,
+.requestPanel,
+.analysisPanel,
+.comparisonHeader,
+.offerCard,
+.recommendationPanel,
+.advisorPanel,
+.emptyState {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.personaCard {
+  min-height: 10rem;
+  padding: 1.1rem;
+  color: var(--ink);
+  text-align: right;
+}
+
+.personaCard span {
+  color: var(--teal);
+  font-weight: 800;
+}
+
+.personaCard strong {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 1.4rem;
+}
+
+.personaCard p {
+  margin: 0.7rem 0 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.personaSelected {
+  border-color: var(--teal);
+  background: var(--surface-soft);
+}
+
+.requestPanel,
+.analysisPanel,
+.recommendationPanel,
+.advisorPanel,
+.comparisonHeader,
+.emptyState {
+  padding: 1.25rem;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.2rem;
+}
+
+label span {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+input {
+  width: 100%;
+  min-height: 2.9rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfc;
+  color: var(--ink);
+  padding: 0.65rem 0.8rem;
+}
+
+input:focus {
+  border-color: var(--teal);
+  outline: 3px solid rgba(14, 118, 110, 0.15);
+}
+
+.consentRow {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 1rem 0;
+}
+
+.consentRow input {
+  width: 1.15rem;
+  height: 1.15rem;
+  min-height: auto;
+}
+
+.consentRow span {
+  margin: 0;
+}
+
+.primaryButton,
+.secondaryButton,
+.chatForm button,
+.segmentedControl button {
+  min-height: 2.75rem;
+  border: 0;
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  font-weight: 900;
+}
+
+.primaryButton {
+  width: 100%;
+  background: var(--teal);
+  color: #ffffff;
+}
+
+.primaryButton:hover:not(:disabled),
+.secondaryButton:hover,
+.chatForm button:hover:not(:disabled) {
+  background: var(--teal-dark);
+}
+
+.secondaryButton {
+  background: var(--teal);
+  color: #ffffff;
+}
+
+.connectionPill {
+  background: #e8f1ff;
+  color: var(--blue);
+}
+
+.errorBanner {
+  margin: 0.75rem 0;
+  border: 1px solid rgba(180, 35, 24, 0.25);
+  border-radius: 8px;
+  background: #fff1ef;
+  color: var(--red);
+  padding: 0.8rem;
+  line-height: 1.6;
+}
+
+.metricCard {
+  padding: 1rem;
+}
+
+.metricCard strong {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 1.45rem;
+}
+
+.analysisPanel p {
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.profileFacts,
+.offerNumbers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+}
+
+.profileFacts div,
+.offerNumbers div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.8rem;
+}
+
+.profileFacts dd,
+.offerNumbers dd {
+  margin: 0.35rem 0 0;
+  font-weight: 900;
+}
+
+.notesList,
+.nextSteps {
+  margin: 1rem 0 0;
+  padding-right: 1.2rem;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.segmentedControl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
+.segmentedControl button {
+  border: 1px solid var(--line);
+  background: #f8faf9;
+  color: var(--muted);
+}
+
+.segmentedControl .segmentActive {
+  border-color: var(--teal);
+  background: var(--teal);
+  color: #ffffff;
+}
+
+.offersList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.offerCard {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.offerCard header div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+}
+
+.offerCard header strong {
+  display: block;
+  font-size: 1.1rem;
+}
+
+.offerCard header p {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+}
+
+.offerCompact {
+  box-shadow: none;
+}
+
+.statusEligible {
+  background: #eaf7ef;
+  color: var(--green);
+}
+
+.statusConditional {
+  background: #fff4df;
+  color: var(--amber);
+}
+
+.statusIneligible {
+  background: #fff1ef;
+  color: var(--red);
+}
+
+.statusReview {
+  background: #e8f1ff;
+  color: var(--blue);
+}
+
+.warningBadge {
+  background: #fff8e8;
+  color: var(--amber);
+}
+
+.reasonBlock {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.reasonBlock p {
+  margin: 0;
+  border-right: 3px solid var(--line);
+  color: var(--muted);
+  padding-right: 0.65rem;
+  line-height: 1.6;
+}
+
+.deliverGrid {
+  grid-template-columns: minmax(0, 1.05fr) minmax(20rem, 0.95fr);
+}
+
+.chatWindow {
+  display: grid;
+  gap: 0.75rem;
+  min-height: 18rem;
+  max-height: 26rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8faf9;
+  padding: 0.9rem;
+}
+
+.chatBubble {
+  width: fit-content;
+  max-width: min(34rem, 86%);
+  margin: 0;
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  line-height: 1.7;
+}
+
+.chatBubble.user {
+  justify-self: start;
+  background: #e8f1ff;
+  color: #1f3d72;
+}
+
+.chatBubble.advisor {
+  justify-self: end;
+  background: #eaf7ef;
+  color: #175337;
+}
+
+.chatForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5.5rem;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.chatForm button {
+  background: var(--teal);
+  color: #ffffff;
+}
+
+.emptyText {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.emptyState {
+  display: grid;
+  place-items: center;
+  min-height: 18rem;
+  text-align: center;
+}
+
+@media (max-width: 1080px) {
+  .appShell {
+    grid-template-columns: 1fr;
+  }
+
+  .stageRail {
+    min-height: auto;
+  }
+
+  .stageList {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .stageButton {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .railSummary {
+    display: none;
+  }
+
+  .deliverGrid,
+  .offersList {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .workspace,
+  .stageRail {
+    padding: 1rem;
+  }
+
+  .topbar,
+  .comparisonHeader,
+  .panelHeading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .diamondMap,
+  .personaGrid,
+  .metricsGrid,
+  .formGrid,
+  .profileFacts,
+  .offerNumbers,
+  .stageList {
+    grid-template-columns: 1fr;
+  }
+
+  .diamondStep {
+    min-height: 4.6rem;
+  }
+
+  .topbarStats {
+    justify-content: flex-start;
+  }
+
+  .chatForm {
+    grid-template-columns: 1fr;
+  }
+}

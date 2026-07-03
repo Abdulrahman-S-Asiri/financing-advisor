@@ -1,0 +1,16 @@
+# Optional: Postgres for the persistence path (db/schema.sql).
+# The hackathon demo runs entirely without it (JSON-first offers repo).
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: amad
+      POSTGRES_PASSWORD: amad
+      POSTGRES_DB: amad
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+volumes:
+  pgdata:
