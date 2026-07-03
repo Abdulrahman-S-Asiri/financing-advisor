@@ -207,3 +207,27 @@ def test_advisor_chat_fails_loud_without_key(monkeypatch):
     r = c.post("/advisor/chat", json={"persona_id": "sara_strong", "message": "hi"})
     assert r.status_code == 503
     assert "ANTHROPIC_API_KEY" in r.json()["detail"]
+
+
+def test_advisor_chat_stream_emits_guarded_sse(monkeypatch):
+    monkeypatch.setattr(
+        "agents.advisor.llm_client.complete",
+        lambda _system, _user: "أفضل عرض هو الخيار الظاهر في نتائج المحرك.",
+    )
+    c = _client()
+    c.post("/journey/connect", json={
+        "persona_id": "sara_strong",
+        "requested_amount": 60_000,
+        "requested_tenor_months": 36,
+    })
+
+    r = c.post("/advisor/chat/stream", json={
+        "persona_id": "sara_strong",
+        "message": "ما أفضل عرض؟",
+    })
+
+    assert r.status_code == 200, r.text
+    assert r.headers["content-type"].startswith("text/event-stream")
+    assert "event: delta" in r.text
+    assert "event: done" in r.text
+    assert "أفضل عرض" in r.text

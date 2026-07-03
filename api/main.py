@@ -174,6 +174,16 @@ def _sse(event: AgentEvent) -> str:
     )
 
 
+def _sse_data(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _chat_chunks(reply: str, chunk_size: int = 40):
+    for index in range(0, len(reply), chunk_size):
+        yield _sse_data("delta", {"delta": reply[index:index + chunk_size]})
+    yield _sse_data("done", {"reply": reply})
+
+
 @app.post("/journey/connect")
 def journey_connect(req: ConnectRequest):
     result = _run_connected_journey(req)
@@ -189,21 +199,36 @@ def journey_connect_stream(req: ConnectRequest):
     )
 
 
-@app.post("/advisor/chat")
-def advisor_chat(req: ChatRequest):
+def _chat_session(req: ChatRequest) -> dict:
     session = _journeys.get(req.journey_id) if req.journey_id else None
     if session is None and req.persona_id:
         session = _sessions.get(req.persona_id)
     if not session:
         raise HTTPException(400, "Run /journey/connect for this persona first.")
+    return session
+
+
+def _advisor_reply(req: ChatRequest) -> str:
+    session = _chat_session(req)
     try:
-        reply = advisor.chat(
+        return advisor.chat(
             session["profile"], session["matches"], session["max_affordable"],
             req.message,
         )
     except llm_client.LLMNotConfigured as exc:
         raise HTTPException(503, str(exc)) from exc
+
+
+@app.post("/advisor/chat")
+def advisor_chat(req: ChatRequest):
+    reply = _advisor_reply(req)
     return {"reply": reply}
+
+
+@app.post("/advisor/chat/stream")
+def advisor_chat_stream(req: ChatRequest):
+    reply = _advisor_reply(req)
+    return StreamingResponse(_chat_chunks(reply), media_type="text/event-stream")
 
 
 def _journey_session(journey_id: str) -> dict:

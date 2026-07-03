@@ -92,6 +92,15 @@ type ChatMessage = {
   text: string;
 };
 
+type ChatStreamEvent = {
+  event: string;
+  data: {
+    delta?: string;
+    reply?: string;
+    detail?: string;
+  };
+};
+
 type ApplicationHistoryItem = {
   status: string;
   message_ar: string;
@@ -262,6 +271,26 @@ function statusCounts(matches: OfferMatch[]) {
   );
 }
 
+function parseChatStreamEvent(rawEvent: string): ChatStreamEvent | null {
+  const lines = rawEvent.split("\n");
+  const eventLine = lines.find((line) => line.startsWith("event:"));
+  const dataLines = lines.filter((line) => line.startsWith("data:"));
+  if (dataLines.length === 0) {
+    return null;
+  }
+
+  try {
+    return {
+      event: eventLine?.replace("event:", "").trim() ?? "message",
+      data: JSON.parse(
+        dataLines.map((line) => line.replace(/^data:\s?/, "")).join("\n"),
+      ) as ChatStreamEvent["data"],
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default function Home() {
   const [activeStage, setActiveStage] = useState<StageKey>("discover");
   const [selectedPersona, setSelectedPersona] = useState<Persona>(personas[0]);
@@ -362,9 +391,34 @@ export default function Home() {
     setIsChatLoading(true);
     setChatMessages((messages) => [...messages, { role: "user", text: nextQuestion }]);
 
-    // Advisor chat is optional, so provider errors become a visible panel state.
+    const appendAdvisorDelta = (delta: string) => {
+      setChatMessages((messages) => {
+        const nextMessages = [...messages];
+        const lastMessage = nextMessages[nextMessages.length - 1];
+        if (lastMessage?.role === "advisor") {
+          nextMessages[nextMessages.length - 1] = {
+            ...lastMessage,
+            text: `${lastMessage.text}${delta}`,
+          };
+          return nextMessages;
+        }
+        return [...nextMessages, { role: "advisor", text: delta }];
+      });
+    };
+
+    const replaceEmptyAdvisorReply = (reply: string) => {
+      setChatMessages((messages) => {
+        const nextMessages = [...messages];
+        const lastMessage = nextMessages[nextMessages.length - 1];
+        if (lastMessage?.role === "advisor" && !lastMessage.text) {
+          nextMessages[nextMessages.length - 1] = { ...lastMessage, text: reply };
+        }
+        return nextMessages;
+      });
+    };
+
     try {
-      const response = await fetch("/backend/advisor/chat", {
+      const response = await fetch("/backend/advisor/chat/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -379,8 +433,45 @@ export default function Home() {
         throw new Error(body?.detail ?? "تعذر تشغيل المستشار.");
       }
 
-      const body = (await response.json()) as { reply: string };
-      setChatMessages((messages) => [...messages, { role: "advisor", text: body.reply }]);
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("تعذر قراءة بث المستشار.");
+      }
+
+      setChatMessages((messages) => [...messages, { role: "advisor", text: "" }]);
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split("\n\n");
+        buffer = events.pop() ?? "";
+
+        for (const rawEvent of events) {
+          const parsed = parseChatStreamEvent(rawEvent);
+          if (parsed?.event === "delta" && parsed.data.delta) {
+            appendAdvisorDelta(parsed.data.delta);
+          }
+          if (parsed?.event === "done" && parsed.data.reply) {
+            replaceEmptyAdvisorReply(parsed.data.reply);
+          }
+        }
+      }
+
+      if (buffer.trim()) {
+        const parsed = parseChatStreamEvent(buffer);
+        if (parsed?.event === "delta" && parsed.data.delta) {
+          appendAdvisorDelta(parsed.data.delta);
+        }
+        if (parsed?.event === "done" && parsed.data.reply) {
+          replaceEmptyAdvisorReply(parsed.data.reply);
+        }
+      }
     } catch (error) {
       setChatError(error instanceof Error ? error.message : "المستشار غير متاح حالياً.");
     } finally {

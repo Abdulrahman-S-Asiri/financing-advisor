@@ -57,6 +57,7 @@ frontend/  ─────────  Arabic RTL Double Diamond app (:3000)
 api/  ──────────────  the platform API (:8000)
    |  POST /journey/connect   consent -> profile -> matches (demo spine)
    |  POST /advisor/chat      advisor agent over the journey result
+   |  POST /advisor/chat/stream
    |  POST /advisor/tools/simulate
    |  GET  /advisor/tools/{journey_id}/offers/{offer_id}
    |  GET  /advisor/tools/{journey_id}/offers/{offer_id}/payment-schedule
