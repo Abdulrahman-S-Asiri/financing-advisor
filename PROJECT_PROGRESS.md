@@ -5,7 +5,7 @@ This file records completed implementation phases, verification status, and the 
 ## Current Status
 
 - Branch: `master`
-- Latest documented phase: response-size regression checks
+- Latest documented phase: offer detail route polish
 - Main app flow: consent simulation, live journey events, financial dashboard, offers marketplace, what-if simulator, advisor chat, and simulated application tracker.
 - Local private files are ignored by `.gitignore`, including `.env`, `.venv/`, frontend env files, Next cache, and dependency folders.
 
@@ -29,9 +29,11 @@ This file records completed implementation phases, verification status, and the 
 | Main journey payload trim | Done | Full payment schedule rows were removed from journey and simulator match payloads. |
 | Advisor context payload trim | Done | Advisor chat context now carries schedule month counts instead of full schedule rows. |
 | Response-size regression checks | Done | Seeded journey and advisor context sizes are covered by lightweight tests. |
+| Offer detail route polish | Done | Offer detail labels are Arabic-first and generated offer detail routes are verified through local API and frontend HTTP checks. |
 
 ## Recent Commits
 
+- `1a66bdf` - Add payload size regression checks
 - `7fb2fd5` - Trim advisor context payload
 - `eb5be51` - Trim journey schedule payloads
 - `9bd3b58` - Add offer detail route
@@ -61,4 +63,4 @@ Before closing each phase:
 
 ## Next Planned Slice
 
-Continue route-level UI polish and add focused browser click-through checks for the offer detail path.
+Continue mobile visual QA and tighten any spacing or overflow issues found in the route-level screens.

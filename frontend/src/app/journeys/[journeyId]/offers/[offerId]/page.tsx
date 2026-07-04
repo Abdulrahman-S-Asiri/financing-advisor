@@ -163,7 +163,7 @@ export default function OfferDetailPage() {
     <main className="detailShell">
       <header className="detailTopbar">
         <button className="backButton" type="button" onClick={() => router.back()}>
-          رجوع
+          العودة
         </button>
         <Link className="detailLink" href="/">
           الرحلة
@@ -172,7 +172,7 @@ export default function OfferDetailPage() {
 
       <section className="detailHero">
         <div>
-          <p className="eyebrow">Offer detail</p>
+          <p className="eyebrow">تفاصيل العرض</p>
           <h1>{detail.institution}</h1>
           <p>{detail.product}</p>
         </div>
@@ -202,7 +202,7 @@ export default function OfferDetailPage() {
           <section className="detailPanel">
             <div className="panelHeading">
               <div>
-                <p className="eyebrow">Cost</p>
+                <p className="eyebrow">التكلفة</p>
                 <h2>تفاصيل التكلفة</h2>
               </div>
             </div>
@@ -239,7 +239,7 @@ export default function OfferDetailPage() {
           <section className="detailPanel">
             <div className="panelHeading">
               <div>
-                <p className="eyebrow">DBR</p>
+                <p className="eyebrow">نسبة الالتزامات</p>
                 <h2>أثر الالتزامات</h2>
               </div>
               <span className="connectionPill">شريحة {detail.dbr.tier}</span>
@@ -279,7 +279,7 @@ export default function OfferDetailPage() {
         <section className="detailPanel">
           <div className="panelHeading">
             <div>
-              <p className="eyebrow">Policy</p>
+              <p className="eyebrow">الشروط</p>
               <h2>شروط العرض</h2>
             </div>
           </div>
@@ -297,7 +297,7 @@ export default function OfferDetailPage() {
         <section className="detailPanel">
           <div className="panelHeading">
             <div>
-              <p className="eyebrow">Trace</p>
+              <p className="eyebrow">مسار القرار</p>
               <h2>أسباب القرار</h2>
             </div>
           </div>
@@ -323,7 +323,7 @@ export default function OfferDetailPage() {
       <section className="detailPanel">
         <div className="panelHeading">
           <div>
-            <p className="eyebrow">Schedule</p>
+            <p className="eyebrow">السداد</p>
             <h2>جدول السداد</h2>
           </div>
           <span className="connectionPill">{schedule.length} شهر</span>
