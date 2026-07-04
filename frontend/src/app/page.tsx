@@ -245,6 +245,9 @@ const sortOptions: Array<{ key: SortMode; label: string }> = [
   { key: "total", label: "الإجمالي الأقل" },
 ];
 
+const applicationStatuses: MatchStatus[] = ["eligible", "conditional", "policy_review"];
+const applicationProgressOrder = ["draft", "submitted", "under_review"];
+
 const agentLabels: Record<string, string> = {
   financial_profile: "الملف المالي",
   matching: "المطابقة",
@@ -401,6 +404,7 @@ export default function Home() {
   const [application, setApplication] = useState<ApplicationRecord | null>(null);
   const [applicationError, setApplicationError] = useState("");
   const [isApplicationLoading, setIsApplicationLoading] = useState(false);
+  const [selectedApplicationOfferId, setSelectedApplicationOfferId] = useState("");
   const [simulatorAmount, setSimulatorAmount] = useState(personas[0].amount);
   const [simulatorTenor, setSimulatorTenor] = useState(personas[0].tenor);
   const [simulatorSalaryTransfer, setSimulatorSalaryTransfer] = useState(false);
@@ -454,6 +458,24 @@ export default function Home() {
     );
   }, [journey]);
 
+  const applicationCandidates = useMemo(() => {
+    if (!journey) {
+      return [];
+    }
+    return journey.matches.filter((match) => applicationStatuses.includes(match.status));
+  }, [journey]);
+
+  const selectedApplicationMatch = useMemo(
+    () =>
+      applicationCandidates.find(
+        (match) => match.offer_id === selectedApplicationOfferId,
+      ) ??
+      recommendedMatch ??
+      applicationCandidates[0] ??
+      null,
+    [applicationCandidates, recommendedMatch, selectedApplicationOfferId],
+  );
+
   function applyPersona(persona: Persona) {
     setSelectedPersona(persona);
     setRequestedAmount(persona.amount);
@@ -464,6 +486,7 @@ export default function Home() {
     setSimulatorSalaryTransfer(false);
     setSimulatedMatches(null);
     setCompareOfferIds([]);
+    setSelectedApplicationOfferId("");
     setFilter("all");
     setStructureFilter("all");
     setSortMode("ranked");
@@ -482,6 +505,7 @@ export default function Home() {
     setChatError("");
     setApplication(null);
     setApplicationError("");
+    setSelectedApplicationOfferId("");
     setSimulatorAmount(requestedAmount);
     setSimulatorTenor(requestedTenor);
     setSimulatorSalaryTransfer(false);
@@ -918,12 +942,15 @@ export default function Home() {
             chatMessages={chatMessages}
             isChatLoading={isChatLoading}
             application={application}
+            applicationCandidates={applicationCandidates}
             applicationError={applicationError}
             isApplicationLoading={isApplicationLoading}
             journey={journey}
             recommendedMatch={recommendedMatch}
+            selectedApplicationMatch={selectedApplicationMatch}
             onApplicationAdvance={() => updateApplication("advance")}
             onApplicationCreate={(offerId) => createApplication(offerId)}
+            onApplicationOfferSelect={setSelectedApplicationOfferId}
             onApplicationSubmit={() => updateApplication("submit")}
             onChatInputChange={setChatInput}
             onChatSubmit={submitChat}
@@ -1506,6 +1533,7 @@ function ComparePanel({
 
 function DeliverStage({
   application,
+  applicationCandidates,
   applicationError,
   chatError,
   chatInput,
@@ -1514,13 +1542,16 @@ function DeliverStage({
   isChatLoading,
   journey,
   recommendedMatch,
+  selectedApplicationMatch,
   onApplicationAdvance,
   onApplicationCreate,
+  onApplicationOfferSelect,
   onApplicationSubmit,
   onChatInputChange,
   onChatSubmit,
 }: {
   application: ApplicationRecord | null;
+  applicationCandidates: OfferMatch[];
   applicationError: string;
   chatError: string;
   chatInput: string;
@@ -1529,8 +1560,10 @@ function DeliverStage({
   isChatLoading: boolean;
   journey: JourneyResponse | null;
   recommendedMatch: OfferMatch | null;
+  selectedApplicationMatch: OfferMatch | null;
   onApplicationAdvance: () => void;
   onApplicationCreate: (offerId: string) => void;
+  onApplicationOfferSelect: (offerId: string) => void;
   onApplicationSubmit: () => void;
   onChatInputChange: (value: string) => void;
   onChatSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -1564,11 +1597,13 @@ function DeliverStage({
 
         <ApplicationTracker
           application={application}
+          candidateMatches={applicationCandidates}
           error={applicationError}
           isLoading={isApplicationLoading}
-          recommendedMatch={recommendedMatch}
+          selectedMatch={selectedApplicationMatch}
           onAdvance={onApplicationAdvance}
           onCreate={onApplicationCreate}
+          onOfferSelect={onApplicationOfferSelect}
           onSubmit={onApplicationSubmit}
         />
       </section>
@@ -1625,19 +1660,23 @@ function DeliverStage({
 
 function ApplicationTracker({
   application,
+  candidateMatches,
   error,
   isLoading,
-  recommendedMatch,
+  selectedMatch,
   onAdvance,
   onCreate,
+  onOfferSelect,
   onSubmit,
 }: {
   application: ApplicationRecord | null;
+  candidateMatches: OfferMatch[];
   error: string;
   isLoading: boolean;
-  recommendedMatch: OfferMatch | null;
+  selectedMatch: OfferMatch | null;
   onAdvance: () => void;
   onCreate: (offerId: string) => void;
+  onOfferSelect: (offerId: string) => void;
   onSubmit: () => void;
 }) {
   const isFinal = application?.status === "approved" || application?.status === "declined";
@@ -1653,14 +1692,42 @@ function ApplicationTracker({
       </div>
 
       {!application && (
-        <button
-          className="secondaryButton"
-          disabled={!recommendedMatch || isLoading}
-          type="button"
-          onClick={() => recommendedMatch && onCreate(recommendedMatch.offer_id)}
-        >
-          {isLoading ? "جاري التجهيز..." : "جهز طلب العرض"}
-        </button>
+        <>
+          {candidateMatches.length > 0 ? (
+            <div className="applicationChoices" aria-label="اختيار عرض للتقديم">
+              {candidateMatches.map((match) => {
+                const isSelected = selectedMatch?.offer_id === match.offer_id;
+                const status = statusCopy[match.status];
+                return (
+                  <button
+                    key={match.offer_id}
+                    className={isSelected ? "applicationChoiceSelected" : ""}
+                    type="button"
+                    onClick={() => onOfferSelect(match.offer_id)}
+                  >
+                    <span className={`statusBadge ${status.className}`}>{status.label}</span>
+                    <strong>{match.institution}</strong>
+                    <small>
+                      {formatSar(match.monthly_installment)} ·{" "}
+                      {formatSar(match.total_amount_payable)}
+                    </small>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="emptyText">لا يوجد عرض قابل للتقديم في هذه الرحلة.</p>
+          )}
+
+          <button
+            className="secondaryButton"
+            disabled={!selectedMatch || isLoading}
+            type="button"
+            onClick={() => selectedMatch && onCreate(selectedMatch.offer_id)}
+          >
+            {isLoading ? "جاري التجهيز..." : "جهز الطلب المختار"}
+          </button>
+        </>
       )}
 
       {application && (
@@ -1669,6 +1736,25 @@ function ApplicationTracker({
             <strong>{applicationStatusLabels[application.status] ?? application.status}</strong>
             <p>{application.summary.simulation_notice_ar}</p>
           </div>
+          <dl className="applicationSummaryGrid">
+            <div>
+              <dt>الممول</dt>
+              <dd>{application.summary.institution}</dd>
+            </div>
+            <div>
+              <dt>المنتج</dt>
+              <dd>{application.summary.product}</dd>
+            </div>
+            <div>
+              <dt>القسط</dt>
+              <dd>{formatSar(application.summary.monthly_installment)}</dd>
+            </div>
+            <div>
+              <dt>الإجمالي</dt>
+              <dd>{formatSar(application.summary.total_amount_payable)}</dd>
+            </div>
+          </dl>
+          <ApplicationProgress status={application.status} />
           <div className="applicationTimeline">
             {application.history.map((item) => (
               <p key={`${item.status}-${item.created_at}`}>
@@ -1695,6 +1781,32 @@ function ApplicationTracker({
 
       {error && <p className="errorBanner">{error}</p>}
     </section>
+  );
+}
+
+function ApplicationProgress({ status }: { status: string }) {
+  const steps = [
+    ...applicationProgressOrder,
+    status === "declined" ? "declined" : "approved",
+  ];
+  const currentIndex = steps.indexOf(status);
+
+  return (
+    <ol className="applicationProgress" aria-label="تقدم الطلب التجريبي">
+      {steps.map((step, index) => {
+        const isDone = currentIndex >= 0 && index < currentIndex;
+        const isCurrent = step === status;
+        return (
+          <li
+            key={step}
+            className={`${isDone ? "progressDone" : ""} ${isCurrent ? "progressCurrent" : ""}`}
+          >
+            <span>{index + 1}</span>
+            <strong>{applicationStatusLabels[step] ?? step}</strong>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
