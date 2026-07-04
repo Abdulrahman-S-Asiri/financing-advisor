@@ -334,19 +334,32 @@ export default function Home() {
   const [simulatedMatches, setSimulatedMatches] = useState<OfferMatch[] | null>(null);
   const [simulatorError, setSimulatorError] = useState("");
   const [isSimulatorLoading, setIsSimulatorLoading] = useState(false);
+  const [compareOfferIds, setCompareOfferIds] = useState<string[]>([]);
 
-  const counts = useMemo(() => statusCounts(journey?.matches ?? []), [journey]);
+  const activeMatches = useMemo(
+    () => simulatedMatches ?? journey?.matches ?? [],
+    [journey, simulatedMatches],
+  );
+
+  const counts = useMemo(() => statusCounts(activeMatches), [activeMatches]);
 
   const visibleMatches = useMemo(() => {
     if (!journey) {
       return [];
     }
-    const matches = simulatedMatches ?? journey.matches;
     if (filter === "all") {
-      return matches;
+      return activeMatches;
     }
-    return matches.filter((match) => match.status === filter);
-  }, [journey, simulatedMatches, filter]);
+    return activeMatches.filter((match) => match.status === filter);
+  }, [journey, activeMatches, filter]);
+
+  const compareMatches = useMemo(
+    () =>
+      compareOfferIds
+        .map((offerId) => activeMatches.find((match) => match.offer_id === offerId))
+        .filter((match): match is OfferMatch => Boolean(match)),
+    [activeMatches, compareOfferIds],
+  );
 
   const recommendedMatch = useMemo(() => {
     if (!journey) {
@@ -368,6 +381,7 @@ export default function Home() {
     setSimulatorTenor(persona.tenor);
     setSimulatorSalaryTransfer(false);
     setSimulatedMatches(null);
+    setCompareOfferIds([]);
   }
 
   async function submitJourney(event: FormEvent<HTMLFormElement>) {
@@ -386,6 +400,7 @@ export default function Home() {
     setSimulatorSalaryTransfer(false);
     setSimulatedMatches(null);
     setSimulatorError("");
+    setCompareOfferIds([]);
     setActiveStage("define");
 
     try {
@@ -626,6 +641,18 @@ export default function Home() {
     }
   }
 
+  function toggleCompareOffer(offerId: string) {
+    setCompareOfferIds((current) => {
+      if (current.includes(offerId)) {
+        return current.filter((id) => id !== offerId);
+      }
+      if (current.length >= 3) {
+        return current;
+      }
+      return [...current, offerId];
+    });
+  }
+
   async function createApplication(offerId: string) {
     if (!journey) {
       return;
@@ -772,6 +799,8 @@ export default function Home() {
 
         {activeStage === "develop" && (
           <DevelopStage
+            compareMatches={compareMatches}
+            compareOfferIds={compareOfferIds}
             filter={filter}
             hasSimulation={simulatedMatches !== null}
             isSimulatorLoading={isSimulatorLoading}
@@ -787,6 +816,7 @@ export default function Home() {
             onSimulatorRun={runSimulation}
             onSimulatorSalaryTransferChange={updateSimulatorSalaryTransfer}
             onSimulatorTenorChange={updateSimulatorTenor}
+            onToggleCompare={toggleCompareOffer}
           />
         )}
 
@@ -1056,6 +1086,8 @@ function AgentTimeline({ events }: { events: AgentEvent[] }) {
 }
 
 function DevelopStage({
+  compareMatches,
+  compareOfferIds,
   filter,
   hasSimulation,
   isSimulatorLoading,
@@ -1071,7 +1103,10 @@ function DevelopStage({
   onSimulatorRun,
   onSimulatorSalaryTransferChange,
   onSimulatorTenorChange,
+  onToggleCompare,
 }: {
+  compareMatches: OfferMatch[];
+  compareOfferIds: string[];
   filter: "all" | MatchStatus;
   hasSimulation: boolean;
   isSimulatorLoading: boolean;
@@ -1087,6 +1122,7 @@ function DevelopStage({
   onSimulatorRun: () => void;
   onSimulatorSalaryTransferChange: (value: boolean) => void;
   onSimulatorTenorChange: (value: number) => void;
+  onToggleCompare: (offerId: string) => void;
 }) {
   if (!journey) {
     return <EmptyState title="لا توجد عروض بعد" />;
@@ -1169,12 +1205,96 @@ function DevelopStage({
         </div>
       </section>
 
+      {compareMatches.length > 0 && (
+        <ComparePanel
+          matches={compareMatches}
+          onRemove={(offerId) => onToggleCompare(offerId)}
+        />
+      )}
+
       <section className="offersList" aria-label="نتائج العروض">
         {visibleMatches.map((match) => (
-          <OfferCard key={match.offer_id} match={match} />
+          <OfferCard
+            key={match.offer_id}
+            compareDisabled={
+              compareOfferIds.length >= 3 && !compareOfferIds.includes(match.offer_id)
+            }
+            compareSelected={compareOfferIds.includes(match.offer_id)}
+            match={match}
+            onCompareToggle={onToggleCompare}
+          />
         ))}
       </section>
     </div>
+  );
+}
+
+function ComparePanel({
+  matches,
+  onRemove,
+}: {
+  matches: OfferMatch[];
+  onRemove: (offerId: string) => void;
+}) {
+  return (
+    <section className="comparePanel" aria-label="مقارنة العروض المختارة">
+      <div className="panelHeading">
+        <div>
+          <p className="eyebrow">Compare</p>
+          <h3>مقارنة مختارة</h3>
+        </div>
+        <span className="connectionPill">{matches.length} / 3</span>
+      </div>
+
+      <div className="compareGrid">
+        {matches.map((match) => {
+          const status = statusCopy[match.status];
+          const firstIssue = match.reasons[0] ?? match.conditions[0] ?? "لا توجد ملاحظات";
+          return (
+            <article key={match.offer_id} className="compareColumn">
+              <header>
+                <div>
+                  <span className={`statusBadge ${status.className}`}>{status.label}</span>
+                  {!match.rate_verified && <span className="warningBadge">سعر غير مؤكد</span>}
+                </div>
+                <strong>{match.institution}</strong>
+                <p>{match.product}</p>
+                <button type="button" onClick={() => onRemove(match.offer_id)}>
+                  إزالة
+                </button>
+              </header>
+
+              <dl className="compareRows">
+                <div>
+                  <dt>القسط</dt>
+                  <dd>{formatSar(match.monthly_installment)}</dd>
+                </div>
+                <div>
+                  <dt>APR</dt>
+                  <dd>{formatPercent(match.apr_effective)}</dd>
+                </div>
+                <div>
+                  <dt>الإجمالي</dt>
+                  <dd>{formatSar(match.total_amount_payable)}</dd>
+                </div>
+                <div>
+                  <dt>الهيكل</dt>
+                  <dd>{match.structure}</dd>
+                </div>
+                <div>
+                  <dt>جدول السداد</dt>
+                  <dd>{match.payment_schedule.length || "غير متاح"}</dd>
+                </div>
+                <div>
+                  <dt>الملاحظة</dt>
+                  <dd>{firstIssue}</dd>
+                </div>
+              </dl>
+            </article>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -1381,7 +1501,19 @@ function MetricCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function OfferCard({ match, compact = false }: { match: OfferMatch; compact?: boolean }) {
+function OfferCard({
+  compareDisabled = false,
+  compareSelected = false,
+  compact = false,
+  match,
+  onCompareToggle,
+}: {
+  compareDisabled?: boolean;
+  compareSelected?: boolean;
+  compact?: boolean;
+  match: OfferMatch;
+  onCompareToggle?: (offerId: string) => void;
+}) {
   const status = statusCopy[match.status];
 
   return (
@@ -1393,6 +1525,16 @@ function OfferCard({ match, compact = false }: { match: OfferMatch; compact?: bo
         </div>
         <strong>{match.institution}</strong>
         <p>{match.product}</p>
+        {onCompareToggle && (
+          <button
+            className="compareButton"
+            disabled={compareDisabled}
+            type="button"
+            onClick={() => onCompareToggle(match.offer_id)}
+          >
+            {compareSelected ? "مختار للمقارنة" : "قارن"}
+          </button>
+        )}
       </header>
 
       <dl className="offerNumbers">
