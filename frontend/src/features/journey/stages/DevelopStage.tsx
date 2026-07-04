@@ -244,7 +244,7 @@ function ComparePanel({
                 </div>
                 <div>
                   <dt>جدول السداد</dt>
-                  <dd>{match.payment_schedule.length || "غير متاح"}</dd>
+                  <dd>{match.payment_schedule_months || "غير متاح"}</dd>
                 </div>
                 <div>
                   <dt>الملاحظة</dt>

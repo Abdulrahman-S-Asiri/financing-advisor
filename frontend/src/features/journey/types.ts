@@ -109,7 +109,7 @@ export type OfferMatch = {
   total_amount_payable: number | null;
   cost_breakdown: CostBreakdown | null;
   dbr: DbrDecision | null;
-  payment_schedule: PaymentScheduleRow[];
+  payment_schedule_months: number;
   reasons: string[];
   conditions: string[];
   rate_verified: boolean;

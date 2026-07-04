@@ -69,18 +69,7 @@ def serialize_match(match: MatchResult) -> dict:
         ),
         "cost_breakdown": match.cost.__dict__ if match.cost else None,
         "dbr": _dbr_payload(match),
-        "payment_schedule": [
-            row.__dict__
-            for row in (
-                cost.payment_schedule(
-                    match.offer,
-                    match.cost.principal,
-                    match.cost.tenor_months,
-                )
-                if match.cost
-                else []
-            )
-        ],
+        "payment_schedule_months": match.cost.tenor_months if match.cost else 0,
         "reasons": match.reasons,
         "conditions": match.conditions,
         "rate_verified": match.offer.rate_verified,

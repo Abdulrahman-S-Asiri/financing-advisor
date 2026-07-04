@@ -90,7 +90,8 @@ def test_journey_borderline_persona_has_mixed_outcomes():
     assert all("dbr" in m for m in body["matches"])
     assert any(m["dbr"] and m["dbr"]["breaches"] for m in body["matches"])
     priced = [m for m in body["matches"] if m["monthly_installment"] is not None]
-    assert priced and all(m["payment_schedule"] for m in priced)
+    assert priced and all("payment_schedule" not in m for m in priced)
+    assert all(m["payment_schedule_months"] > 0 for m in priced)
     assert all(m["cost_breakdown"] for m in priced)
     assert all(
         m["cost_breakdown"]["monthly_installment"] == m["monthly_installment"]
@@ -281,6 +282,8 @@ def test_advisor_tools_simulate_detail_and_schedule():
     assert updated["status"] == "eligible"
     assert updated["monthly_installment"] == conditional["monthly_installment"]
     assert updated["cost_breakdown"]["principal"] == 60_000
+    assert "payment_schedule" not in updated
+    assert updated["payment_schedule_months"] == 36
 
     detail = c.get(
         f"/advisor/tools/{journey['journey_id']}/offers/{conditional['offer_id']}"
@@ -290,6 +293,7 @@ def test_advisor_tools_simulate_detail_and_schedule():
     assert detail_body["tool"] == "get_offer_detail"
     assert detail_body["offer"]["offer_id"] == conditional["offer_id"]
     assert detail_body["offer"]["offer"]["salary_transfer_required"] is True
+    assert "payment_schedule" not in detail_body["offer"]
     assert "dbr" in detail_body["offer"]
 
     schedule = c.get(
