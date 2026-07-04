@@ -1284,6 +1284,7 @@ input:focus {
 }
 
 .detailTopbar {
+  flex-wrap: wrap;
   justify-content: space-between;
 }
 
@@ -1296,20 +1297,27 @@ input:focus {
   padding: 1.25rem;
 }
 
+.detailHero > div {
+  min-width: 0;
+}
+
 .detailHero h1 {
   margin: 0;
   font-size: 2rem;
+  overflow-wrap: anywhere;
 }
 
 .detailHero p:not(.eyebrow) {
   margin: 0.35rem 0 0;
   color: var(--muted);
   line-height: 1.7;
+  overflow-wrap: anywhere;
 }
 
 .detailBadges {
   flex-wrap: wrap;
   justify-content: flex-end;
+  min-width: 0;
 }
 
 .detailGrid {
@@ -1373,6 +1381,11 @@ input:focus {
   color: var(--muted);
   line-height: 1.6;
   padding-right: 0.65rem;
+  overflow-wrap: anywhere;
+}
+
+.detailShell .sourceRow a {
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 1080px) {
@@ -1446,6 +1459,26 @@ input:focus {
 
   .topbarStats {
     justify-content: flex-start;
+  }
+
+  .detailTopbar,
+  .detailBadges {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .detailTopbar .backButton,
+  .detailTopbar .detailLink {
+    flex: 1 1 8rem;
+  }
+
+  .detailHero h1 {
+    font-size: 1.55rem;
+  }
+
+  .detailPanel,
+  .detailHero {
+    padding: 1rem;
   }
 
   .chatForm {
