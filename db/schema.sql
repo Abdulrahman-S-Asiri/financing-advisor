@@ -34,6 +34,35 @@ CREATE TABLE IF NOT EXISTS consents (
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS journeys (
+    journey_id                       UUID PRIMARY KEY,
+    persona_id                       TEXT NOT NULL,
+    requested_amount                 NUMERIC(12,2) NOT NULL,
+    requested_tenor_months           INT NOT NULL,
+    profile                          JSONB NOT NULL,
+    matches                          JSONB NOT NULL,
+    max_affordable_new_installment   NUMERIC(12,2) NOT NULL,
+    suggested_questions              JSONB NOT NULL DEFAULT '[]',
+    created_at                       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS agent_events (
+    journey_id   UUID NOT NULL REFERENCES journeys(journey_id) ON DELETE CASCADE,
+    sequence     INT NOT NULL,
+    type         TEXT NOT NULL,
+    agent        TEXT,
+    message_ar   TEXT NOT NULL,
+    payload      JSONB NOT NULL DEFAULT '{}',
+    created_at   TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (journey_id, sequence)
+);
+
+CREATE INDEX IF NOT EXISTS idx_journeys_persona_updated
+    ON journeys(persona_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_agent_events_journey_sequence
+    ON agent_events(journey_id, sequence);
+
 CREATE TABLE IF NOT EXISTS profiles (
     id                          BIGSERIAL PRIMARY KEY,
     persona_id                  TEXT NOT NULL,

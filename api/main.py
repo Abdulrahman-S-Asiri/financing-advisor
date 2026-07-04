@@ -34,16 +34,16 @@ from agents import (
     orchestrator,
 )
 from agents.events import AgentEvent, AgentEventType, AgentName
+from api.persistence import JourneyStore
 from core.models import Category, Offer, Structure
 from core.profile import Txn
 
 MOCK_OB_BASE_URL = os.environ.get("MOCK_OB_BASE_URL", "http://127.0.0.1:8100")
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 OFFERS_PATH = Path(__file__).resolve().parent.parent / "db" / "seed_offers.json"
 
 app = FastAPI(title="Financing Advisor API", version="0.1.0")
 
-_sessions: dict[str, dict] = {}   # persona_id -> last journey result (demo-grade)
-_journeys: dict[str, dict] = {}    # journey_id -> journey result (demo-grade)
 _applications: dict[str, application_agent.ApplicationRecord] = {}
 
 
@@ -61,6 +61,7 @@ class OffersRepo:
 
 
 repo = OffersRepo(OFFERS_PATH)
+journey_store = JourneyStore(repo.offers, DATABASE_URL or None)
 
 
 class ConnectRequest(BaseModel):
@@ -138,17 +139,7 @@ def _store_journey(
     requested_amount: float,
     requested_tenor_months: int,
 ) -> None:
-    session = {
-        "profile": result.profile,
-        "matches": result.matches,
-        "max_affordable": result.max_affordable,
-        "events": result.events,
-        "journey_id": result.journey_id,
-        "requested_amount": requested_amount,
-        "requested_tenor_months": requested_tenor_months,
-    }
-    _sessions[result.profile.persona_id] = session
-    _journeys[result.journey_id] = session
+    journey_store.save(result, requested_amount, requested_tenor_months)
 
 
 def _run_connected_journey(req: ConnectRequest) -> orchestrator.JourneyResult:
@@ -200,9 +191,9 @@ def journey_connect_stream(req: ConnectRequest):
 
 
 def _chat_session(req: ChatRequest) -> dict:
-    session = _journeys.get(req.journey_id) if req.journey_id else None
+    session = journey_store.get_by_journey(req.journey_id) if req.journey_id else None
     if session is None and req.persona_id:
-        session = _sessions.get(req.persona_id)
+        session = journey_store.get_by_persona(req.persona_id)
     if not session:
         raise HTTPException(400, "Run /journey/connect for this persona first.")
     return session
@@ -232,7 +223,7 @@ def advisor_chat_stream(req: ChatRequest):
 
 
 def _journey_session(journey_id: str) -> dict:
-    session = _journeys.get(journey_id)
+    session = journey_store.get_by_journey(journey_id)
     if not session:
         raise HTTPException(404, "Unknown journey_id.")
     return session
@@ -252,7 +243,7 @@ def _record_advisor_tool(session: dict, tool: str, payload: dict) -> AgentEvent:
         message_ar=messages.get(tool, "استدعاء أداة المستشار."),
         payload={"tool": tool, **payload},
     )
-    session["events"].append(event)
+    journey_store.append_event(session, event)
     return event
 
 

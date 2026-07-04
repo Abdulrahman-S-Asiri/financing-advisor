@@ -24,6 +24,8 @@ pytest core/tests -q
 uvicorn mock_open_banking.main:app --port 8100
 
 # Terminal 2 — platform API
+# Optional persistence: docker compose up -d db
+# DATABASE_URL=postgresql://amad:amad@127.0.0.1:5432/amad
 uvicorn api.main:app --port 8000
 
 # Terminal 3 — Double Diamond frontend
@@ -78,6 +80,10 @@ api/  ──────────────  the platform API (:8000)
             llm_client.py   Anthropic-compatible wrapper, endpoint/model from env
 db/   seed_offers.json (JSON-first offers repo) + schema.sql (Postgres path)
 ```
+
+Set `DATABASE_URL` to enable Postgres-backed journey snapshots and ordered
+agent trace events. Without it, the API keeps the same in-memory hot path for
+local demos and CI.
 
 ## DBR rules encoded (verify before demo)
 
@@ -135,8 +141,9 @@ of inventing a cap.
   yet the official SAMA spec — align during enrichment (one adapter).
 - **Admin-fee cap** (1% / SAR 5,000 in seeds) — verify the current SAMA
   consumer-finance fee cap before the demo.
-- **Sessions are in-memory**; `db/schema.sql` + docker-compose are the
-  persistence path if needed. Not needed for the demo.
+- **Persistence is optional**; set `DATABASE_URL` to persist journey snapshots
+  and agent traces to Postgres. Without it, local demo sessions remain
+  in-memory.
 - **No auth, no real Open Banking, no application submission, no SME
   module** — cut by design; they are roadmap slides, not hackathon scope.
 - Salary/obligation detection is heuristic (documented in
