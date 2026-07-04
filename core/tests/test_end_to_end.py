@@ -128,6 +128,28 @@ def test_offers_verification_report_flags_placeholder_seed_data():
     ) == 8
 
 
+def test_offers_review_checklist_exports_seed_worklist():
+    c = _client()
+    r = c.get("/offers/review-checklist")
+    assert r.status_code == 200, r.text
+    body = r.json()
+
+    assert body["total_offers"] == 8
+    assert body["ready_count"] == 0
+    assert body["needs_review_count"] == 8
+    assert body["catalog_actions"]
+    assert len(body["offers"]) == 8
+    assert all(item["review_status"] == "needs_review" for item in body["offers"])
+    assert all("placeholder_rate" in item["issue_codes"] for item in body["offers"])
+
+    csv_response = c.get("/offers/review-checklist.csv")
+    assert csv_response.status_code == 200, csv_response.text
+    assert csv_response.headers["content-type"].startswith("text/csv")
+    assert "offer-review-checklist.csv" in csv_response.headers["content-disposition"]
+    assert "offer_id,institution,product_name" in csv_response.text
+    assert "alinma-personal-tawarruq" in csv_response.text
+
+
 def test_application_simulation_lifecycle():
     c = _client()
     journey = c.post("/journey/connect", json={

@@ -1,7 +1,11 @@
 from datetime import date
 
 from core.models import Category, Offer, Structure
-from core.offer_verification import verify_offers
+from core.offer_verification import (
+    build_review_checklist,
+    review_checklist_csv,
+    verify_offers,
+)
 
 
 def _offer(
@@ -66,3 +70,30 @@ def test_offer_verification_requires_fresh_retrieved_at_for_verified_rates():
         "stale_verified_rate",
         "missing_retrieved_at",
     }
+
+
+def test_offer_review_checklist_exports_required_actions():
+    checklist = build_review_checklist(
+        [
+            _offer("placeholder"),
+            _offer("ready", rate_verified=True, retrieved_at="2026-07-01"),
+        ],
+        today=date(2026, 7, 4),
+        target_min_offers=1,
+    )
+
+    placeholder = next(item for item in checklist.offers if item.offer_id == "placeholder")
+    ready = next(item for item in checklist.offers if item.offer_id == "ready")
+
+    assert checklist.total_offers == 2
+    assert checklist.ready_count == 1
+    assert checklist.needs_review_count == 1
+    assert placeholder.review_status == "needs_review"
+    assert placeholder.issue_codes == ["placeholder_rate"]
+    assert "Fill retrieved_at" in " ".join(placeholder.required_actions)
+    assert ready.review_status == "ready"
+
+    csv_body = review_checklist_csv(checklist)
+    assert "offer_id,institution,product_name" in csv_body
+    assert "placeholder" in csv_body
+    assert "ready" in csv_body

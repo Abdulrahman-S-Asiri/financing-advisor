@@ -65,6 +65,8 @@ api/  ──────────────  the platform API (:8000)
    |  GET  /advisor/tools/{journey_id}/offers/{offer_id}/payment-schedule
    |  GET  /offers
    |  GET  /offers/verification
+   |  GET  /offers/review-checklist
+   |  GET  /offers/review-checklist.csv
    |
    ├──> mock_open_banking/ (:8100)  AIS-shaped service over seeded personas.
    |        Real service boundary on purpose: swapping in a licensed TPP
@@ -139,7 +141,8 @@ of inventing a cap.
   Person C replaces them with published pricing. The flag propagates to
   API responses so nothing fake can silently look real. Use
   `GET /offers/verification` to check source coverage, stale verified rates,
-  and the current gap to the target catalog size.
+  and the current gap to the target catalog size. Use
+  `GET /offers/review-checklist.csv` as the working review export.
 - **AIS field names** follow the common Open Banking envelope style, not
   yet the official SAMA spec — align during enrichment (one adapter).
 - **Admin-fee cap** (1% / SAR 5,000 in seeds) — verify the current SAMA

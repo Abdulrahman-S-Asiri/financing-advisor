@@ -23,7 +23,7 @@ from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from agents import (
@@ -36,7 +36,11 @@ from agents import (
 from agents.events import AgentEvent, AgentEventType, AgentName
 from api.persistence import ApplicationStore, JourneyStore
 from core.models import Category, Offer, Structure
-from core.offer_verification import verify_offers
+from core.offer_verification import (
+    build_review_checklist,
+    review_checklist_csv,
+    verify_offers,
+)
 from core.profile import Txn
 
 MOCK_OB_BASE_URL = os.environ.get("MOCK_OB_BASE_URL", "http://127.0.0.1:8100")
@@ -107,6 +111,23 @@ def list_offers():
 @app.get("/offers/verification")
 def offers_verification():
     return verify_offers(repo.offers).to_dict()
+
+
+@app.get("/offers/review-checklist")
+def offers_review_checklist():
+    return build_review_checklist(repo.offers).to_dict()
+
+
+@app.get("/offers/review-checklist.csv")
+def offers_review_checklist_csv():
+    checklist = build_review_checklist(repo.offers)
+    return Response(
+        content=review_checklist_csv(checklist),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": 'attachment; filename="offer-review-checklist.csv"'
+        },
+    )
 
 
 def _open_banking_transactions(req: ConnectRequest) -> tuple[str, list[dict]]:
