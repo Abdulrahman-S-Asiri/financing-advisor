@@ -5,7 +5,7 @@ This file records completed implementation phases, verification status, and the 
 ## Current Status
 
 - Branch: `master`
-- Latest documented phase: route mobile polish
+- Latest documented phase: main flow mobile polish
 - Main app flow: consent simulation, live journey events, financial dashboard, offers marketplace, what-if simulator, advisor chat, and simulated application tracker.
 - Local private files are ignored by `.gitignore`, including `.env`, `.venv/`, frontend env files, Next cache, and dependency folders.
 
@@ -31,9 +31,11 @@ This file records completed implementation phases, verification status, and the 
 | Response-size regression checks | Done | Seeded journey and advisor context sizes are covered by lightweight tests. |
 | Offer detail route polish | Done | Offer detail labels are Arabic-first and generated offer detail routes are verified through local API and frontend HTTP checks. |
 | Route mobile polish | Done | Offer detail topbar, hero copy, badges, trace text, and source links are tightened for small screens. |
+| Main flow mobile polish | Done | Journey controls, offer actions, badges, and chat text wrap more safely on narrow screens. |
 
 ## Recent Commits
 
+- `f01847d` - Improve route mobile layout
 - `53f4d25` - Polish offer detail route
 - `1a66bdf` - Add payload size regression checks
 - `7fb2fd5` - Trim advisor context payload
@@ -65,4 +67,4 @@ Before closing each phase:
 
 ## Next Planned Slice
 
-Continue end-to-end journey QA and capture any remaining mobile issues in the main flow.
+Review the GitHub Actions Node runtime warning and update the workflow if the project config needs it.

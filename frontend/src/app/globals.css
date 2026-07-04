@@ -151,6 +151,10 @@ h3 {
   overflow-wrap: anywhere;
 }
 
+.stageButton > span:last-child {
+  min-width: 0;
+}
+
 .stageButton small {
   margin-top: 0.15rem;
   color: #bed2ce;
@@ -796,6 +800,7 @@ input:focus {
 .offerCard {
   display: grid;
   gap: 1rem;
+  min-width: 0;
   padding: 1rem;
 }
 
@@ -809,11 +814,13 @@ input:focus {
 .offerCard header strong {
   display: block;
   font-size: 1.1rem;
+  overflow-wrap: anywhere;
 }
 
 .offerCard header p {
   margin: 0.25rem 0 0;
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .compareButton,
@@ -1210,6 +1217,7 @@ input:focus {
   border-radius: 8px;
   padding: 0.75rem 0.9rem;
   line-height: 1.7;
+  overflow-wrap: anywhere;
 }
 
 .chatBubble.user {
@@ -1459,6 +1467,33 @@ input:focus {
 
   .topbarStats {
     justify-content: flex-start;
+  }
+
+  .topbarStats span,
+  .connectionPill,
+  .warningBadge,
+  .statusBadge {
+    white-space: normal;
+  }
+
+  .segmentedControl {
+    justify-content: stretch;
+  }
+
+  .segmentedControl button,
+  .offerActions .detailLink,
+  .offerActions .compareButton,
+  .applicationActions button {
+    flex: 1 1 8rem;
+  }
+
+  .offerActions .detailLink,
+  .offerActions .compareButton {
+    min-height: 2.75rem;
+  }
+
+  .chatBubble {
+    max-width: 100%;
   }
 
   .detailTopbar,
