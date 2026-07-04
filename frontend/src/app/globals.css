@@ -538,12 +538,14 @@ input:focus {
   font-weight: 900;
 }
 
+.costDetails,
 .paymentSchedule {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fbfcfc;
 }
 
+.costDetails summary,
 .paymentSchedule summary {
   min-height: 2.75rem;
   color: var(--ink);
@@ -552,15 +554,16 @@ input:focus {
   padding: 0.75rem 0.9rem;
 }
 
-.schedulePreview {
+.costDetailGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.6rem;
   border-top: 1px solid var(--line);
+  margin: 0;
   padding: 0.75rem;
 }
 
-.schedulePreview div {
+.costDetailGrid div {
   display: grid;
   gap: 0.25rem;
   border: 1px solid var(--line);
@@ -568,15 +571,73 @@ input:focus {
   padding: 0.65rem;
 }
 
-.schedulePreview span,
-.schedulePreview small {
+.costDetailGrid dt,
+.sourceRow span,
+.scheduleTableHead span {
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 800;
 }
 
-.schedulePreview strong {
+.costDetailGrid dd {
+  margin: 0;
   font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.sourceRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfc;
+  padding: 0.75rem 0.9rem;
+}
+
+.sourceRow a {
+  color: var(--blue);
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.sourceRow a:hover {
+  text-decoration: underline;
+}
+
+.scheduleTable {
+  display: grid;
+  max-height: 22rem;
+  overflow: auto;
+  border-top: 1px solid var(--line);
+}
+
+.scheduleTableHead,
+.scheduleTableRow {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(6rem, 1fr));
+  min-width: 34rem;
+}
+
+.scheduleTableHead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f1f6f5;
+}
+
+.scheduleTableHead span,
+.scheduleTableRow span {
+  border-bottom: 1px solid var(--line);
+  padding: 0.65rem 0.75rem;
+}
+
+.scheduleTableRow span {
+  color: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 800;
 }
 
 .notesList,
@@ -984,7 +1045,7 @@ input:focus {
   .formGrid,
   .profileFacts,
   .offerNumbers,
-  .schedulePreview,
+  .costDetailGrid,
   .stageList {
     grid-template-columns: 1fr;
   }

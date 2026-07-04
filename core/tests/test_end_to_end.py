@@ -80,6 +80,12 @@ def test_journey_borderline_persona_has_mixed_outcomes():
     assert all("near_miss_suggestions" in m for m in body["matches"])
     priced = [m for m in body["matches"] if m["monthly_installment"] is not None]
     assert priced and all(m["payment_schedule"] for m in priced)
+    assert all(m["cost_breakdown"] for m in priced)
+    assert all(
+        m["cost_breakdown"]["monthly_installment"] == m["monthly_installment"]
+        for m in priced
+    )
+    assert all(m["cost_breakdown"]["admin_fee"] >= 0 for m in priced)
 
     # Phase 1 agent foundation: the legacy response is still present, with
     # ordered events added for the UI timeline.
@@ -263,6 +269,7 @@ def test_advisor_tools_simulate_detail_and_schedule():
     )
     assert updated["status"] == "eligible"
     assert updated["monthly_installment"] == conditional["monthly_installment"]
+    assert updated["cost_breakdown"]["principal"] == 60_000
 
     detail = c.get(
         f"/advisor/tools/{journey['journey_id']}/offers/{conditional['offer_id']}"

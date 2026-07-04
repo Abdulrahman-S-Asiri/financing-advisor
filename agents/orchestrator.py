@@ -25,6 +25,7 @@ def serialize_match(match: MatchResult) -> dict:
         "total_amount_payable": (
             match.cost.total_amount_payable if match.cost else None
         ),
+        "cost_breakdown": match.cost.__dict__ if match.cost else None,
         "payment_schedule": [
             row.__dict__
             for row in (

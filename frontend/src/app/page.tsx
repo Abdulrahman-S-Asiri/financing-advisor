@@ -62,6 +62,17 @@ type PaymentScheduleRow = {
   remaining_principal: number;
 };
 
+type CostBreakdown = {
+  principal: number;
+  tenor_months: number;
+  flat_rate_annual: number;
+  monthly_installment: number;
+  total_profit: number;
+  admin_fee: number;
+  total_amount_payable: number;
+  apr_effective: number;
+};
+
 type OfferMatch = {
   offer_id: string;
   institution: string;
@@ -71,6 +82,7 @@ type OfferMatch = {
   monthly_installment: number | null;
   apr_effective: number | null;
   total_amount_payable: number | null;
+  cost_breakdown: CostBreakdown | null;
   payment_schedule: PaymentScheduleRow[];
   reasons: string[];
   conditions: string[];
@@ -265,14 +277,6 @@ function formatNearMiss(suggestion: NearMissSuggestion) {
     return `تحويل الراتب يفتح هذا المسار${status ? ` بحالة ${status}` : ""}.${suffix}`;
   }
   return suggestion.message;
-}
-
-function schedulePreviewRows(schedule: PaymentScheduleRow[]) {
-  if (schedule.length <= 3) {
-    return schedule;
-  }
-  const middle = schedule[Math.floor(schedule.length / 2)];
-  return [schedule[0], middle, schedule[schedule.length - 1]];
 }
 
 function statusCounts(matches: OfferMatch[]) {
@@ -1552,15 +1556,65 @@ function OfferCard({
         </div>
       </dl>
 
+      {match.cost_breakdown && (
+        <details className="costDetails">
+          <summary>تفاصيل التكلفة</summary>
+          <dl className="costDetailGrid">
+            <div>
+              <dt>مبلغ التمويل</dt>
+              <dd>{formatSar(match.cost_breakdown.principal)}</dd>
+            </div>
+            <div>
+              <dt>الربح الإجمالي</dt>
+              <dd>{formatSar(match.cost_breakdown.total_profit)}</dd>
+            </div>
+            <div>
+              <dt>الرسوم الإدارية</dt>
+              <dd>{formatSar(match.cost_breakdown.admin_fee)}</dd>
+            </div>
+            <div>
+              <dt>المعدل الثابت</dt>
+              <dd>{formatPercent(match.cost_breakdown.flat_rate_annual)}</dd>
+            </div>
+            <div>
+              <dt>المدة</dt>
+              <dd>{match.cost_breakdown.tenor_months} شهر</dd>
+            </div>
+            <div>
+              <dt>APR</dt>
+              <dd>{formatPercent(match.cost_breakdown.apr_effective)}</dd>
+            </div>
+          </dl>
+        </details>
+      )}
+
+      {match.source_url && (
+        <div className="sourceRow">
+          <span>مصدر السعر</span>
+          <a href={match.source_url} rel="noreferrer" target="_blank">
+            {match.rate_verified ? "مصدر منشور" : "مصدر للمراجعة"}
+          </a>
+        </div>
+      )}
+
       {match.payment_schedule.length > 0 && (
         <details className="paymentSchedule">
-          <summary>جدول السداد ({match.payment_schedule.length} شهر)</summary>
-          <div className="schedulePreview">
-            {schedulePreviewRows(match.payment_schedule).map((row) => (
-              <div key={`${match.offer_id}-month-${row.month}`}>
+          <summary>جدول السداد الكامل ({match.payment_schedule.length} شهر)</summary>
+          <div className="scheduleTable">
+            <div className="scheduleTableHead">
+              <span>الشهر</span>
+              <span>القسط</span>
+              <span>الأصل</span>
+              <span>الربح</span>
+              <span>المتبقي</span>
+            </div>
+            {match.payment_schedule.map((row) => (
+              <div className="scheduleTableRow" key={`${match.offer_id}-month-${row.month}`}>
                 <span>شهر {row.month}</span>
-                <strong>{formatSar(row.installment)}</strong>
-                <small>المتبقي {formatSar(row.remaining_principal)}</small>
+                <span>{formatSar(row.installment)}</span>
+                <span>{formatSar(row.principal_component)}</span>
+                <span>{formatSar(row.profit_component)}</span>
+                <span>{formatSar(row.remaining_principal)}</span>
               </div>
             ))}
           </div>
