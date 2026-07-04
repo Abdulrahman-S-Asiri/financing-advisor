@@ -1,3 +1,5 @@
+import json
+
 from agents import advisor, llm_client
 from core.models import (
     Category,
@@ -81,6 +83,15 @@ def test_advisor_retries_when_reply_contains_unsupported_number(monkeypatch):
     reply = advisor.chat(_profile(), [_match()], 2_000, "ما هو القسط؟")
 
     assert reply == "القسط هو 1,597.22 حسب نتائج المحرك."
+
+
+def test_advisor_context_excludes_full_payment_schedule():
+    context = json.loads(advisor.build_context(_profile(), [_match()], 2_000))
+    match = context["matches"][0]
+
+    assert "payment_schedule" not in match
+    assert match["payment_schedule_months"] == 36
+    assert match["cost"]["monthly_installment"] == 1_597.22
 
 
 def test_advisor_returns_fallback_when_retry_still_contains_unsupported_number(

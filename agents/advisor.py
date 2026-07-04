@@ -19,7 +19,6 @@ import re
 from dataclasses import asdict, dataclass
 
 from agents import llm_client
-from core import cost
 from core.models import FinancialProfile, MatchResult
 
 SYSTEM = """You are a Saudi consumer-financing advisor inside a licensed-style \
@@ -33,8 +32,10 @@ JSON. If a number is missing, say the engine has not computed it.
 the provided reasons/conditions, and what could change the outcome.
 3. Explain Islamic finance structures (tawarruq, murabaha, ijarah) plainly \
 when asked. Compare offers on total amount payable and APR.
-4. Reply in the user's language (Arabic or English). Be concise and concrete.
-5. You are not the lender. Final approval always rests with the institution.
+4. Full month-by-month schedules are not included in chat context. If the user \
+asks for a full schedule, say to open the offer detail schedule.
+5. Reply in the user's language (Arabic or English). Be concise and concrete.
+6. You are not the lender. Final approval always rests with the institution.
 """
 
 _DIGIT_TRANSLATION = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
@@ -64,18 +65,7 @@ def build_context(profile: FinancialProfile, matches: list[MatchResult],
                 "reasons": m.reasons,
                 "conditions": m.conditions,
                 "cost": asdict(m.cost) if m.cost else None,
-                "payment_schedule": [
-                    row.__dict__
-                    for row in (
-                        cost.payment_schedule(
-                            m.offer,
-                            m.cost.principal,
-                            m.cost.tenor_months,
-                        )
-                        if m.cost
-                        else []
-                    )
-                ],
+                "payment_schedule_months": m.cost.tenor_months if m.cost else 0,
                 "dbr": asdict(m.dbr) if m.dbr else None,
                 "rate_verified": m.offer.rate_verified,
                 "source_url": m.offer.source_url,
