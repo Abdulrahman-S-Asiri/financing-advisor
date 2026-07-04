@@ -4,9 +4,14 @@ The API's httpx client is pointed at the mock OB FastAPI app in-process via
 ASGITransport — no ports, no network, runs in CI and on any laptop. This is
 the test that says "Day 1 is already done" the moment you clone the repo.
 """
+import os
+
+import pytest
 from fastapi.testclient import TestClient
 
+from api import main as api_main
 from api.main import app as api_app
+from api.persistence import JourneyStore
 from mock_open_banking.main import app as ob_app
 
 
@@ -231,3 +236,35 @@ def test_advisor_chat_stream_emits_guarded_sse(monkeypatch):
     assert "event: delta" in r.text
     assert "event: done" in r.text
     assert "أفضل عرض" in r.text
+
+
+def test_postgres_journey_store_survives_hot_cache_miss():
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        pytest.skip("DATABASE_URL is not configured.")
+
+    if not api_main.journey_store.postgres_enabled:
+        if os.environ.get("CI"):
+            raise AssertionError("DATABASE_URL is configured but Postgres is not enabled.")
+        pytest.skip("DATABASE_URL is configured but Postgres is not enabled locally.")
+
+    c = _client()
+    journey = c.post("/journey/connect", json={
+        "persona_id": "sara_strong",
+        "requested_amount": 60_000,
+        "requested_tenor_months": 36,
+        "age": 31,
+    }).json()
+
+    cold_store = JourneyStore(api_main.repo.offers, database_url)
+    assert cold_store.postgres_enabled
+    session = cold_store.get_by_journey(journey["journey_id"])
+
+    assert session is not None
+    assert session["profile"].persona_id == "sara_strong"
+    assert session["requested_amount"] == 60_000
+    assert session["requested_tenor_months"] == 36
+    assert [event.sequence for event in session["events"]] == list(
+        range(1, len(session["events"]) + 1)
+    )
+    assert session["matches"]

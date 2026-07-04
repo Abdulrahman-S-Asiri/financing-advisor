@@ -10,6 +10,23 @@ jobs:
   backend:
     name: Backend tests
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://amad:amad@127.0.0.1:5432/amad
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: amad
+          POSTGRES_PASSWORD: amad
+          POSTGRES_DB: amad
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U amad -d amad"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
 
     steps:
       - name: Checkout
@@ -23,6 +40,13 @@ jobs:
 
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
+
+      - name: Initialize database
+        run: >
+          python -c "import os; from pathlib import Path; import psycopg;
+          conn = psycopg.connect(os.environ['DATABASE_URL'], autocommit=True);
+          conn.execute(Path('db/schema.sql').read_text(encoding='utf-8'));
+          conn.close()"
 
       - name: Run tests
         run: python -m pytest core/tests -q
