@@ -89,6 +89,14 @@ type JourneyResponse = {
   suggested_questions: string[];
 };
 
+type SimulationResponse = {
+  requested_amount: number;
+  requested_tenor_months: number;
+  salary_transfer: boolean;
+  max_affordable_new_installment: number;
+  matches: OfferMatch[];
+};
+
 type ChatMessage = {
   role: "user" | "advisor";
   text: string;
@@ -320,6 +328,12 @@ export default function Home() {
   const [application, setApplication] = useState<ApplicationRecord | null>(null);
   const [applicationError, setApplicationError] = useState("");
   const [isApplicationLoading, setIsApplicationLoading] = useState(false);
+  const [simulatorAmount, setSimulatorAmount] = useState(personas[0].amount);
+  const [simulatorTenor, setSimulatorTenor] = useState(personas[0].tenor);
+  const [simulatorSalaryTransfer, setSimulatorSalaryTransfer] = useState(false);
+  const [simulatedMatches, setSimulatedMatches] = useState<OfferMatch[] | null>(null);
+  const [simulatorError, setSimulatorError] = useState("");
+  const [isSimulatorLoading, setIsSimulatorLoading] = useState(false);
 
   const counts = useMemo(() => statusCounts(journey?.matches ?? []), [journey]);
 
@@ -327,11 +341,12 @@ export default function Home() {
     if (!journey) {
       return [];
     }
+    const matches = simulatedMatches ?? journey.matches;
     if (filter === "all") {
-      return journey.matches;
+      return matches;
     }
-    return journey.matches.filter((match) => match.status === filter);
-  }, [journey, filter]);
+    return matches.filter((match) => match.status === filter);
+  }, [journey, simulatedMatches, filter]);
 
   const recommendedMatch = useMemo(() => {
     if (!journey) {
@@ -349,6 +364,10 @@ export default function Home() {
     setRequestedAmount(persona.amount);
     setRequestedTenor(persona.tenor);
     setAge(persona.age);
+    setSimulatorAmount(persona.amount);
+    setSimulatorTenor(persona.tenor);
+    setSimulatorSalaryTransfer(false);
+    setSimulatedMatches(null);
   }
 
   async function submitJourney(event: FormEvent<HTMLFormElement>) {
@@ -362,6 +381,11 @@ export default function Home() {
     setChatError("");
     setApplication(null);
     setApplicationError("");
+    setSimulatorAmount(requestedAmount);
+    setSimulatorTenor(requestedTenor);
+    setSimulatorSalaryTransfer(false);
+    setSimulatedMatches(null);
+    setSimulatorError("");
     setActiveStage("define");
 
     try {
@@ -545,6 +569,63 @@ export default function Home() {
     }
   }
 
+  function updateSimulatorAmount(value: number) {
+    setSimulatorAmount(value);
+    setSimulatedMatches(null);
+    setSimulatorError("");
+  }
+
+  function updateSimulatorTenor(value: number) {
+    setSimulatorTenor(value);
+    setSimulatedMatches(null);
+    setSimulatorError("");
+  }
+
+  function updateSimulatorSalaryTransfer(value: boolean) {
+    setSimulatorSalaryTransfer(value);
+    setSimulatedMatches(null);
+    setSimulatorError("");
+  }
+
+  function resetSimulation() {
+    setSimulatorAmount(requestedAmount);
+    setSimulatorTenor(requestedTenor);
+    setSimulatorSalaryTransfer(false);
+    setSimulatedMatches(null);
+    setSimulatorError("");
+  }
+
+  async function runSimulation() {
+    if (!journey) {
+      return;
+    }
+    setIsSimulatorLoading(true);
+    setSimulatorError("");
+    try {
+      const response = await fetch("/backend/advisor/tools/simulate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          journey_id: journey.journey_id,
+          requested_amount: simulatorAmount,
+          requested_tenor_months: simulatorTenor,
+          salary_transfer: simulatorSalaryTransfer,
+        }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.detail ?? "تعذر تشغيل المحاكاة.");
+      }
+
+      const body = (await response.json()) as SimulationResponse;
+      setSimulatedMatches(body.matches);
+    } catch (error) {
+      setSimulatorError(error instanceof Error ? error.message : "تعذر تشغيل المحاكاة.");
+    } finally {
+      setIsSimulatorLoading(false);
+    }
+  }
+
   async function createApplication(offerId: string) {
     if (!journey) {
       return;
@@ -692,9 +773,20 @@ export default function Home() {
         {activeStage === "develop" && (
           <DevelopStage
             filter={filter}
+            hasSimulation={simulatedMatches !== null}
+            isSimulatorLoading={isSimulatorLoading}
             journey={journey}
+            simulatorAmount={simulatorAmount}
+            simulatorError={simulatorError}
+            simulatorSalaryTransfer={simulatorSalaryTransfer}
+            simulatorTenor={simulatorTenor}
             visibleMatches={visibleMatches}
             onFilterChange={setFilter}
+            onSimulatorAmountChange={updateSimulatorAmount}
+            onSimulatorReset={resetSimulation}
+            onSimulatorRun={runSimulation}
+            onSimulatorSalaryTransferChange={updateSimulatorSalaryTransfer}
+            onSimulatorTenorChange={updateSimulatorTenor}
           />
         )}
 
@@ -965,14 +1057,36 @@ function AgentTimeline({ events }: { events: AgentEvent[] }) {
 
 function DevelopStage({
   filter,
+  hasSimulation,
+  isSimulatorLoading,
   journey,
+  simulatorAmount,
+  simulatorError,
+  simulatorSalaryTransfer,
+  simulatorTenor,
   visibleMatches,
   onFilterChange,
+  onSimulatorAmountChange,
+  onSimulatorReset,
+  onSimulatorRun,
+  onSimulatorSalaryTransferChange,
+  onSimulatorTenorChange,
 }: {
   filter: "all" | MatchStatus;
+  hasSimulation: boolean;
+  isSimulatorLoading: boolean;
   journey: JourneyResponse | null;
+  simulatorAmount: number;
+  simulatorError: string;
+  simulatorSalaryTransfer: boolean;
+  simulatorTenor: number;
   visibleMatches: OfferMatch[];
   onFilterChange: (value: "all" | MatchStatus) => void;
+  onSimulatorAmountChange: (value: number) => void;
+  onSimulatorReset: () => void;
+  onSimulatorRun: () => void;
+  onSimulatorSalaryTransferChange: (value: boolean) => void;
+  onSimulatorTenorChange: (value: number) => void;
 }) {
   if (!journey) {
     return <EmptyState title="لا توجد عروض بعد" />;
@@ -996,6 +1110,62 @@ function DevelopStage({
               {item.label}
             </button>
           ))}
+        </div>
+      </section>
+
+      <section className="requestPanel">
+        <div className="panelHeading">
+          <div>
+            <p className="eyebrow">Simulator</p>
+            <h3>اختبر سيناريو آخر</h3>
+          </div>
+          <span className="connectionPill">{hasSimulation ? "محاكاة مفعلة" : "المحرك"}</span>
+        </div>
+
+        <div className="formGrid">
+          <label>
+            <span>مبلغ التمويل</span>
+            <input
+              min={5000}
+              step={1000}
+              type="number"
+              value={simulatorAmount}
+              onChange={(event) => onSimulatorAmountChange(Number(event.target.value))}
+            />
+          </label>
+          <label>
+            <span>مدة التمويل بالأشهر</span>
+            <input
+              max={60}
+              min={6}
+              step={6}
+              type="number"
+              value={simulatorTenor}
+              onChange={(event) => onSimulatorTenorChange(Number(event.target.value))}
+            />
+          </label>
+        </div>
+
+        <label className="consentRow">
+          <input
+            checked={simulatorSalaryTransfer}
+            type="checkbox"
+            onChange={(event) => onSimulatorSalaryTransferChange(event.target.checked)}
+          />
+          <span>محاكاة تحويل الراتب</span>
+        </label>
+
+        {simulatorError && <p className="errorBanner">{simulatorError}</p>}
+
+        <div className="applicationActions">
+          <button disabled={isSimulatorLoading} type="button" onClick={onSimulatorRun}>
+            {isSimulatorLoading ? "..." : "تشغيل المحاكاة"}
+          </button>
+          {hasSimulation && (
+            <button disabled={isSimulatorLoading} type="button" onClick={onSimulatorReset}>
+              إعادة الأصل
+            </button>
+          )}
         </div>
       </section>
 
