@@ -23,6 +23,7 @@ from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -48,6 +49,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 OFFERS_PATH = Path(__file__).resolve().parent.parent / "db" / "seed_offers.json"
 
 app = FastAPI(title="Financing Advisor API", version="0.1.0")
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=6)
 
 
 class OffersRepo:
@@ -229,12 +231,21 @@ def _sse_frame(
     return "\n".join(lines) + "\n\n"
 
 
-def _sse(event: AgentEvent) -> str:
+def _sse(event: AgentEvent, data: dict | None = None) -> str:
     return _sse_frame(
         event.type.value,
-        event.to_dict(),
+        data or event.to_dict(),
         event_id=event.sequence,
     )
+
+
+def _journey_sse_events(result: orchestrator.JourneyResult):
+    final_payload = result.response_payload(include_events=False)
+    for event in result.events:
+        data = event.to_dict()
+        if event.type == AgentEventType.JOURNEY_COMPLETED:
+            data["payload"] = final_payload
+        yield _sse(event, data)
 
 
 def _chat_chunks(reply: str, chunk_size: int = 40):
@@ -259,7 +270,7 @@ def journey_connect(req: ConnectRequest):
 def journey_connect_stream(req: ConnectRequest):
     result = _run_connected_journey(req)
     return StreamingResponse(
-        (_sse(event) for event in result.events),
+        _journey_sse_events(result),
         media_type="text/event-stream",
     )
 

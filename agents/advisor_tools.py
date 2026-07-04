@@ -65,7 +65,7 @@ def _dbr_payload(match: MatchResult) -> dict | None:
 
 def get_offer_detail(matches: list[MatchResult], offer_id: str) -> dict:
     match = _find_match(matches, offer_id)
-    payload = serialize_match(match)
+    payload = serialize_match(match, include_details=True)
     payload["offer"] = _offer_payload(match.offer)
     payload["dbr"] = _dbr_payload(match)
     return payload

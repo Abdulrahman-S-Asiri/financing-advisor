@@ -85,19 +85,18 @@ def test_journey_borderline_persona_has_mixed_outcomes():
 
     # Unverified placeholder rates are flagged all the way to the response
     assert all("rate_verified" in m for m in body["matches"])
-    assert all("category" in m for m in body["matches"])
+    assert all("category" not in m for m in body["matches"])
     assert all("near_miss_suggestions" in m for m in body["matches"])
-    assert all("dbr" in m for m in body["matches"])
-    assert any(m["dbr"] and m["dbr"]["breaches"] for m in body["matches"])
+    assert all(len(m["reasons"]) <= 1 for m in body["matches"])
+    assert all(len(m["conditions"]) <= 1 for m in body["matches"])
+    assert all(len(m["near_miss_suggestions"]) <= 1 for m in body["matches"])
+    assert all("dbr" not in m for m in body["matches"])
+    assert all("source_url" not in m for m in body["matches"])
+    assert all("retrieved_at" not in m for m in body["matches"])
     priced = [m for m in body["matches"] if m["monthly_installment"] is not None]
     assert priced and all("payment_schedule" not in m for m in priced)
     assert all(m["payment_schedule_months"] > 0 for m in priced)
-    assert all(m["cost_breakdown"] for m in priced)
-    assert all(
-        m["cost_breakdown"]["monthly_installment"] == m["monthly_installment"]
-        for m in priced
-    )
-    assert all(m["cost_breakdown"]["admin_fee"] >= 0 for m in priced)
+    assert all("cost_breakdown" not in m for m in priced)
 
     # Phase 1 agent foundation: the legacy response is still present, with
     # ordered events added for the UI timeline.
@@ -109,6 +108,7 @@ def test_journey_borderline_persona_has_mixed_outcomes():
     assert body["events"][0]["type"] == "agent_started"
     assert body["events"][-1]["type"] == "journey_completed"
     assert body["events"][-1]["payload"]["journey_id"] == body["journey_id"]
+    assert "matches" not in body["events"][-1]["payload"]
 
 
 def test_seeded_journey_and_advisor_payloads_stay_lightweight():
@@ -127,8 +127,8 @@ def test_seeded_journey_and_advisor_payloads_stay_lightweight():
         len(json.dumps(match, ensure_ascii=False))
         for match in body["matches"]
     ]
-    assert payload_bytes < 32_000
-    assert max(match_bytes) < 2_000
+    assert payload_bytes < 12_000
+    assert max(match_bytes) < 1_000
     assert all("payment_schedule" not in match for match in body["matches"])
 
     session = api_main.journey_store.get_by_journey(body["journey_id"])
@@ -137,7 +137,8 @@ def test_seeded_journey_and_advisor_payloads_stay_lightweight():
         session["matches"],
         session["max_affordable"],
     )
-    assert len(context) < 12_000
+    assert session["events"][-1].payload == {"journey_id": body["journey_id"]}
+    assert len(context) < 10_000
     assert '"payment_schedule":' not in context
     assert '"payment_schedule_months":' in context
 
@@ -187,6 +188,38 @@ def test_journey_stream_emits_sse_events():
         == frames[-1]["data"]["journey_id"]
     )
     assert frames[-1]["data"]["payload"]["matches"]
+
+    session = api_main.journey_store.get_by_journey(frames[-1]["data"]["journey_id"])
+    assert session["events"][-1].payload == {
+        "journey_id": frames[-1]["data"]["journey_id"]
+    }
+
+
+def test_gzip_compresses_json_without_compressing_sse():
+    c = _client()
+    req = {
+        "persona_id": "sara_strong",
+        "requested_amount": 60_000,
+        "requested_tenor_months": 36,
+        "age": 31,
+    }
+
+    json_response = c.post(
+        "/journey/connect",
+        headers={"Accept-Encoding": "gzip"},
+        json=req,
+    )
+    assert json_response.status_code == 200, json_response.text
+    assert json_response.headers.get("content-encoding") == "gzip"
+
+    stream_response = c.post(
+        "/journey/connect/stream",
+        headers={"Accept-Encoding": "gzip"},
+        json=req,
+    )
+    assert stream_response.status_code == 200, stream_response.text
+    assert stream_response.headers["content-type"].startswith("text/event-stream")
+    assert "content-encoding" not in stream_response.headers
 
 
 def test_journey_rejected_persona_explains_why():
@@ -312,7 +345,7 @@ def test_advisor_tools_simulate_detail_and_schedule():
     )
     assert updated["status"] == "eligible"
     assert updated["monthly_installment"] == conditional["monthly_installment"]
-    assert updated["cost_breakdown"]["principal"] == 60_000
+    assert "cost_breakdown" not in updated
     assert "payment_schedule" not in updated
     assert updated["payment_schedule_months"] == 36
 
@@ -323,7 +356,14 @@ def test_advisor_tools_simulate_detail_and_schedule():
     detail_body = detail.json()
     assert detail_body["tool"] == "get_offer_detail"
     assert detail_body["offer"]["offer_id"] == conditional["offer_id"]
+    assert detail_body["offer"]["category"]
     assert detail_body["offer"]["offer"]["salary_transfer_required"] is True
+    assert detail_body["offer"]["source_url"]
+    assert "retrieved_at" in detail_body["offer"]
+    assert isinstance(detail_body["offer"]["reasons"], list)
+    assert isinstance(detail_body["offer"]["conditions"], list)
+    assert isinstance(detail_body["offer"]["near_miss_suggestions"], list)
+    assert detail_body["offer"]["cost_breakdown"]["principal"] == 60_000
     assert "payment_schedule" not in detail_body["offer"]
     assert "dbr" in detail_body["offer"]
 

@@ -162,6 +162,24 @@ def test_salary_floor_reason_is_user_readable():
     assert r.status == MatchStatus.INELIGIBLE and "below" in r.reasons[0]
 
 
+def test_near_miss_skips_amount_and_tenor_searches_for_salary_floor(monkeypatch):
+    def fail_search(*_args, **_kwargs):
+        raise AssertionError("Amount/tenor search should not run for salary floor.")
+
+    monkeypatch.setattr("core.eligibility._suggest_lower_amount", fail_search)
+    monkeypatch.setattr("core.eligibility._suggest_shorter_tenor", fail_search)
+
+    r = match_offer(
+        _offer(min_gross_salary=12_000),
+        _profile(gross_salary=9_500),
+        50_000,
+        36,
+    )
+
+    assert r.status == MatchStatus.INELIGIBLE
+    assert not r.near_miss_suggestions
+
+
 def test_conditional_when_salary_elsewhere():
     r = match_offer(_offer(institution="Bank B"), _profile(salary_bank="Bank A"),
                     50_000, 36)

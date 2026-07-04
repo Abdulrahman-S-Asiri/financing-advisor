@@ -64,7 +64,7 @@ export const OfferCard = memo(function OfferCard({
       {(detailHref || onCompareToggle) && (
         <div className="offerActions">
           {detailHref && (
-            <Link className="detailLink" href={detailHref}>
+            <Link className="detailLink" href={detailHref} prefetch={false}>
               عرض التفاصيل
             </Link>
           )}

@@ -122,12 +122,26 @@ def match_offer(
 
     near_miss_suggestions = []
     if include_near_miss and status in {MatchStatus.INELIGIBLE, MatchStatus.CONDITIONAL}:
+        lower_amount_can_help = (
+            requested_amount > offer.max_amount
+            or (decision is not None and not decision.passes)
+        )
+        shorter_tenor_can_help = (
+            requested_tenor_months > offer.max_tenor_months
+            or (
+                offer.category != Category.REAL_ESTATE
+                and requested_tenor_months > dbr.MAX_CONSUMER_TENOR_MONTHS
+            )
+            or age_at_maturity > offer.max_age_at_maturity
+        )
         near_miss_suggestions = suggest_near_misses(
             offer,
             profile,
             requested_amount,
             requested_tenor_months,
             status,
+            lower_amount_can_help=lower_amount_can_help,
+            shorter_tenor_can_help=shorter_tenor_can_help,
         )
 
     return MatchResult(
@@ -208,6 +222,13 @@ def _suggest_shorter_tenor(
     if offer.category != Category.REAL_ESTATE:
         max_allowed = min(max_allowed, dbr.MAX_CONSUMER_TENOR_MONTHS)
 
+    age_at_requested_maturity = profile.age + requested_tenor_months // 12
+    if (
+        requested_tenor_months <= max_allowed
+        and age_at_requested_maturity <= offer.max_age_at_maturity
+    ):
+        return None
+
     upper = min(requested_tenor_months - 1, max_allowed)
     if upper < offer.min_tenor_months:
         return None
@@ -273,6 +294,9 @@ def suggest_near_misses(
     requested_amount: float,
     requested_tenor_months: int,
     current_status: MatchStatus,
+    *,
+    lower_amount_can_help: bool = True,
+    shorter_tenor_can_help: bool = True,
 ) -> list[NearMissSuggestion]:
     """Deterministically search small changes that create a path forward."""
     suggestions: list[NearMissSuggestion] = []
@@ -286,7 +310,7 @@ def suggest_near_misses(
     if salary_transfer:
         suggestions.append(salary_transfer)
 
-    if current_status == MatchStatus.INELIGIBLE:
+    if current_status == MatchStatus.INELIGIBLE and lower_amount_can_help:
         lower_amount = _suggest_lower_amount(
             offer,
             profile,
@@ -296,6 +320,7 @@ def suggest_near_misses(
         if lower_amount:
             suggestions.append(lower_amount)
 
+    if current_status == MatchStatus.INELIGIBLE and shorter_tenor_can_help:
         shorter_tenor = _suggest_shorter_tenor(
             offer,
             profile,

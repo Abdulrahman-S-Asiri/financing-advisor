@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
 import { applicationStatuses, personas, stages } from "../features/journey/data";
@@ -27,23 +27,19 @@ import type {
 import type { DefineStageProps } from "../features/journey/stages/DefineStage";
 import type { DeliverStageProps } from "../features/journey/stages/DeliverStage";
 import type { DevelopStageProps } from "../features/journey/stages/DevelopStage";
-import type { DiscoverStageProps } from "../features/journey/stages/DiscoverStage";
+import DiscoverStage from "../features/journey/stages/DiscoverStage";
 
-const DiscoverStage = dynamic<DiscoverStageProps>(
-  () => import("../features/journey/stages/DiscoverStage"),
-  { loading: StageLoading, ssr: false },
-);
 const DefineStage = dynamic<DefineStageProps>(
   () => import("../features/journey/stages/DefineStage"),
-  { loading: StageLoading, ssr: false },
+  { loading: StageLoading },
 );
 const DevelopStage = dynamic<DevelopStageProps>(
   () => import("../features/journey/stages/DevelopStage"),
-  { loading: StageLoading, ssr: false },
+  { loading: StageLoading },
 );
 const DeliverStage = dynamic<DeliverStageProps>(
   () => import("../features/journey/stages/DeliverStage"),
-  { loading: StageLoading, ssr: false },
+  { loading: StageLoading },
 );
 
 function StageLoading() {
@@ -148,7 +144,7 @@ export default function Home() {
     [applicationCandidates, recommendedMatch, selectedApplicationOfferId],
   );
 
-  function applyPersona(persona: Persona) {
+  const applyPersona = useCallback(function applyPersona(persona: Persona) {
     setSelectedPersona(persona);
     setRequestedAmount(persona.amount);
     setRequestedTenor(persona.tenor);
@@ -162,7 +158,7 @@ export default function Home() {
     setFilter("all");
     setStructureFilter("all");
     setSortMode("ranked");
-  }
+  }, []);
 
   async function submitJourney(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -221,9 +217,6 @@ export default function Home() {
         }
 
         const agentEvent = parsed.data;
-        streamedEvents.push(agentEvent);
-        setLiveEvents([...streamedEvents]);
-
         if (parsed.event === "journey_completed") {
           const payload = agentEvent.payload as unknown as Omit<
             JourneyResponse,
@@ -234,7 +227,11 @@ export default function Home() {
             events: [...streamedEvents],
           };
           setJourney(completedJourney);
+          return;
         }
+
+        streamedEvents.push(agentEvent);
+        setLiveEvents([...streamedEvents]);
       };
 
       while (true) {
@@ -367,31 +364,33 @@ export default function Home() {
     }
   }
 
-  function updateSimulatorAmount(value: number) {
+  const updateSimulatorAmount = useCallback(function updateSimulatorAmount(value: number) {
     setSimulatorAmount(value);
     setSimulatedMatches(null);
     setSimulatorError("");
-  }
+  }, []);
 
-  function updateSimulatorTenor(value: number) {
+  const updateSimulatorTenor = useCallback(function updateSimulatorTenor(value: number) {
     setSimulatorTenor(value);
     setSimulatedMatches(null);
     setSimulatorError("");
-  }
+  }, []);
 
-  function updateSimulatorSalaryTransfer(value: boolean) {
+  const updateSimulatorSalaryTransfer = useCallback(function updateSimulatorSalaryTransfer(
+    value: boolean,
+  ) {
     setSimulatorSalaryTransfer(value);
     setSimulatedMatches(null);
     setSimulatorError("");
-  }
+  }, []);
 
-  function resetSimulation() {
+  const resetSimulation = useCallback(function resetSimulation() {
     setSimulatorAmount(requestedAmount);
     setSimulatorTenor(requestedTenor);
     setSimulatorSalaryTransfer(false);
     setSimulatedMatches(null);
     setSimulatorError("");
-  }
+  }, [requestedAmount, requestedTenor]);
 
   async function runSimulation() {
     if (!journey) {
@@ -424,7 +423,7 @@ export default function Home() {
     }
   }
 
-  function toggleCompareOffer(offerId: string) {
+  const toggleCompareOffer = useCallback(function toggleCompareOffer(offerId: string) {
     setCompareOfferIds((current) => {
       if (current.includes(offerId)) {
         return current.filter((id) => id !== offerId);
@@ -434,7 +433,7 @@ export default function Home() {
       }
       return [...current, offerId];
     });
-  }
+  }, []);
 
   async function createApplication(offerId: string) {
     if (!journey) {

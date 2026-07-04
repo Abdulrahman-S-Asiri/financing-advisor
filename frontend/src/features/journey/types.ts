@@ -101,20 +101,20 @@ export type OfferMatch = {
   offer_id: string;
   institution: string;
   product: string;
-  category: string;
+  category?: string;
   structure: string;
   status: MatchStatus;
   monthly_installment: number | null;
   apr_effective: number | null;
   total_amount_payable: number | null;
-  cost_breakdown: CostBreakdown | null;
-  dbr: DbrDecision | null;
+  cost_breakdown?: CostBreakdown | null;
+  dbr?: DbrDecision | null;
   payment_schedule_months: number;
   reasons: string[];
   conditions: string[];
   rate_verified: boolean;
-  source_url: string;
-  retrieved_at: string;
+  source_url?: string;
+  retrieved_at?: string;
   near_miss_suggestions: NearMissSuggestion[];
 };
 

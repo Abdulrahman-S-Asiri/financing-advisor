@@ -80,42 +80,66 @@ export default function OfferDetailPage() {
   const [detail, setDetail] = useState<OfferDetail | null>(null);
   const [schedule, setSchedule] = useState<PaymentScheduleRow[]>([]);
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [scheduleError, setScheduleError] = useState("");
+  const [isDetailLoading, setIsDetailLoading] = useState(true);
+  const [isScheduleLoading, setIsScheduleLoading] = useState(false);
 
   useEffect(() => {
     if (!journeyId || !offerId) {
       setError("رابط العرض غير مكتمل.");
-      setIsLoading(false);
+      setIsDetailLoading(false);
+      setIsScheduleLoading(false);
       return;
     }
 
     const controller = new AbortController();
-    async function loadOffer() {
-      setIsLoading(true);
+    const detailUrl = `/backend/advisor/tools/${journeyId}/offers/${offerId}`;
+    const scheduleUrl = `${detailUrl}/payment-schedule`;
+
+    async function loadDetail() {
+      setIsDetailLoading(true);
       setError("");
+      setDetail(null);
       try {
-        const detailUrl = `/backend/advisor/tools/${journeyId}/offers/${offerId}`;
-        const scheduleUrl = `${detailUrl}/payment-schedule`;
-        const [detailBody, scheduleBody] = await Promise.all([
-          fetch(detailUrl, { signal: controller.signal }).then(readJson<OfferDetailResponse>),
-          fetch(scheduleUrl, { signal: controller.signal }).then(
-            readJson<PaymentScheduleResponse>,
-          ),
-        ]);
+        const detailBody = await fetch(detailUrl, { signal: controller.signal }).then(
+          readJson<OfferDetailResponse>,
+        );
         setDetail(detailBody.offer);
-        setSchedule(scheduleBody.payment_schedule);
       } catch (loadError) {
         if (!controller.signal.aborted) {
           setError(loadError instanceof Error ? loadError.message : "تعذر تحميل تفاصيل العرض.");
         }
       } finally {
         if (!controller.signal.aborted) {
-          setIsLoading(false);
+          setIsDetailLoading(false);
         }
       }
     }
 
-    loadOffer();
+    async function loadSchedule() {
+      setIsScheduleLoading(true);
+      setScheduleError("");
+      setSchedule([]);
+      try {
+        const scheduleBody = await fetch(scheduleUrl, { signal: controller.signal }).then(
+          readJson<PaymentScheduleResponse>,
+        );
+        setSchedule(scheduleBody.payment_schedule);
+      } catch (loadError) {
+        if (!controller.signal.aborted) {
+          setScheduleError(
+            loadError instanceof Error ? loadError.message : "تعذر تحميل جدول السداد.",
+          );
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsScheduleLoading(false);
+        }
+      }
+    }
+
+    loadDetail();
+    loadSchedule();
     return () => controller.abort();
   }, [journeyId, offerId]);
 
@@ -136,7 +160,7 @@ export default function OfferDetailPage() {
     ];
   }, [detail]);
 
-  if (isLoading) {
+  if (isDetailLoading) {
     return (
       <main className="detailShell">
         <section className="emptyState">
@@ -328,7 +352,11 @@ export default function OfferDetailPage() {
           </div>
           <span className="connectionPill">{schedule.length} شهر</span>
         </div>
-        {schedule.length > 0 ? (
+        {isScheduleLoading ? (
+          <p className="emptyText">جاري تحميل جدول السداد.</p>
+        ) : scheduleError ? (
+          <p className="errorBanner">{scheduleError}</p>
+        ) : schedule.length > 0 ? (
           <div className="scheduleTable">
             <div className="scheduleTableHead">
               <span>الشهر</span>

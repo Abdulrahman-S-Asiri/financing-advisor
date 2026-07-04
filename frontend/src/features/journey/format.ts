@@ -1,26 +1,30 @@
 import { statusCopy } from "./data";
 import type { MatchStatus, NearMissSuggestion, OfferMatch, SortMode } from "./types";
 
+const sarFormatter = new Intl.NumberFormat("ar-SA", {
+  style: "currency",
+  currency: "SAR",
+  maximumFractionDigits: 0,
+});
+
+const percentFormatter = new Intl.NumberFormat("ar-SA", {
+  style: "percent",
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+
 export function formatSar(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "غير متاح";
   }
-  return new Intl.NumberFormat("ar-SA", {
-    style: "currency",
-    currency: "SAR",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return sarFormatter.format(value);
 }
 
 export function formatPercent(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "غير متاح";
   }
-  return new Intl.NumberFormat("ar-SA", {
-    style: "percent",
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  }).format(value);
+  return percentFormatter.format(value);
 }
 
 export function formatCap(value: number | null) {

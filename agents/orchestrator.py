@@ -52,12 +52,18 @@ def _financial_health_payload(
     }
 
 
-def serialize_match(match: MatchResult) -> dict:
-    return {
+def serialize_match(match: MatchResult, *, include_details: bool = False) -> dict:
+    reasons = match.reasons if include_details else match.reasons[:1]
+    conditions = match.conditions if include_details else match.conditions[:1]
+    near_miss_suggestions = (
+        match.near_miss_suggestions
+        if include_details
+        else match.near_miss_suggestions[:1]
+    )
+    payload = {
         "offer_id": match.offer.id,
         "institution": match.offer.institution,
         "product": match.offer.product_name,
-        "category": match.offer.category.value,
         "structure": match.offer.structure.value,
         "status": match.status.value,
         "monthly_installment": (
@@ -67,14 +73,10 @@ def serialize_match(match: MatchResult) -> dict:
         "total_amount_payable": (
             match.cost.total_amount_payable if match.cost else None
         ),
-        "cost_breakdown": match.cost.__dict__ if match.cost else None,
-        "dbr": _dbr_payload(match),
         "payment_schedule_months": match.cost.tenor_months if match.cost else 0,
-        "reasons": match.reasons,
-        "conditions": match.conditions,
+        "reasons": reasons,
+        "conditions": conditions,
         "rate_verified": match.offer.rate_verified,
-        "source_url": match.offer.source_url,
-        "retrieved_at": match.offer.retrieved_at,
         "near_miss_suggestions": [
             {
                 "kind": suggestion.kind,
@@ -84,9 +86,16 @@ def serialize_match(match: MatchResult) -> dict:
                 "monthly_installment": suggestion.monthly_installment,
                 "status": suggestion.status.value if suggestion.status else None,
             }
-            for suggestion in match.near_miss_suggestions
+            for suggestion in near_miss_suggestions
         ],
     }
+    if include_details:
+        payload["category"] = match.offer.category.value
+        payload["source_url"] = match.offer.source_url
+        payload["retrieved_at"] = match.offer.retrieved_at
+        payload["cost_breakdown"] = match.cost.__dict__ if match.cost else None
+        payload["dbr"] = _dbr_payload(match)
+    return payload
 
 
 @dataclass
@@ -105,8 +114,17 @@ class JourneyResult:
             self.max_affordable,
         )
         if include_events:
-            payload["events"] = [event.to_dict() for event in self.events]
+            payload["events"] = [
+                serialize_event_for_response(event) for event in self.events
+            ]
         return payload
+
+
+def serialize_event_for_response(event: AgentEvent) -> dict:
+    payload = event.to_dict()
+    if event.type == AgentEventType.JOURNEY_COMPLETED:
+        payload["payload"] = {"journey_id": event.journey_id}
+    return payload
 
 
 def serialize_journey(
@@ -314,12 +332,11 @@ def run_journey(
         "اكتملت مقارنة التكلفة.",
     )
 
-    final_payload = serialize_journey(journey_id, profile, ranked, max_affordable)
     events.emit(
         AgentEventType.JOURNEY_COMPLETED,
         None,
         "اكتملت رحلة تحليل التمويل.",
-        final_payload,
+        {"journey_id": journey_id},
     )
 
     return JourneyResult(
