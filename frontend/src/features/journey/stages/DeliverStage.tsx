@@ -58,7 +58,11 @@ export default function DeliverStage({
         </div>
 
         {recommendedMatch ? (
-          <OfferCard match={recommendedMatch} compact />
+          <OfferCard
+            detailHref={`/journeys/${journey.journey_id}/offers/${recommendedMatch.offer_id}`}
+            match={recommendedMatch}
+            compact
+          />
         ) : (
           <p className="emptyText">
             الالتزامات الحالية تتجاوز المساحة التمويلية المتاحة. القرار الأنسب هو تخفيض

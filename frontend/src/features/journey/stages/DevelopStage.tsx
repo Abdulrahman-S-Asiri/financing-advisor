@@ -177,6 +177,7 @@ export default function DevelopStage({
                 compareOfferIds.length >= 3 && !compareOfferIds.includes(match.offer_id)
               }
               compareSelected={compareOfferIds.includes(match.offer_id)}
+              detailHref={`/journeys/${journey.journey_id}/offers/${match.offer_id}`}
               match={match}
               onCompareToggle={onToggleCompare}
             />

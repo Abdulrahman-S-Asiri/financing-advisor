@@ -832,6 +832,52 @@ input:focus {
   margin-top: 0.85rem;
 }
 
+.offerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.offerActions .compareButton {
+  margin-top: 0;
+}
+
+.detailLink,
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.4rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8faf9;
+  color: var(--teal-dark);
+  font-size: 0.84rem;
+  font-weight: 900;
+  padding: 0.45rem 0.75rem;
+  text-decoration: none;
+}
+
+.backButton {
+  cursor: pointer;
+}
+
+.offerHighlights {
+  display: grid;
+  gap: 0.4rem;
+  border: 1px solid rgba(14, 118, 110, 0.14);
+  border-radius: 8px;
+  background: #f8faf9;
+  padding: 0.75rem;
+}
+
+.offerHighlights p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
 .comparePanel {
   display: grid;
   gap: 1rem;
@@ -1221,6 +1267,114 @@ input:focus {
   text-align: center;
 }
 
+.detailShell {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  min-height: 100vh;
+  padding: 1.5rem;
+}
+
+.detailTopbar,
+.detailHero,
+.detailBadges {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.detailTopbar {
+  justify-content: space-between;
+}
+
+.detailHero {
+  justify-content: space-between;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+}
+
+.detailHero h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.detailHero p:not(.eyebrow) {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.detailBadges {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.detailPanel {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+}
+
+.detailPanel h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.detailFacts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.detailFacts div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8faf9;
+  padding: 0.8rem;
+}
+
+.detailFacts dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.detailFacts dd {
+  margin: 0.35rem 0 0;
+  font-weight: 900;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.traceList {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.traceList p {
+  margin: 0;
+  border-right: 3px solid var(--line);
+  color: var(--muted);
+  line-height: 1.6;
+  padding-right: 0.65rem;
+}
+
 @media (max-width: 1080px) {
   .appShell {
     grid-template-columns: 1fr;
@@ -1245,6 +1399,7 @@ input:focus {
   }
 
   .deliverGrid,
+  .detailGrid,
   .compareGrid,
   .offersList {
     grid-template-columns: 1fr;
@@ -1253,11 +1408,13 @@ input:focus {
 
 @media (max-width: 760px) {
   .workspace,
-  .stageRail {
+  .stageRail,
+  .detailShell {
     padding: 1rem;
   }
 
   .topbar,
+  .detailHero,
   .comparisonHeader,
   .panelHeading,
   .timelineHeading {
@@ -1276,6 +1433,7 @@ input:focus {
   .offerNumbers,
   .costDetailGrid,
   .dbrGrid,
+  .detailFacts,
   .applicationSummaryGrid,
   .applicationProgress,
   .stageList {
