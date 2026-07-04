@@ -34,7 +34,7 @@ from agents import (
     orchestrator,
 )
 from agents.events import AgentEvent, AgentEventType, AgentName
-from api.persistence import JourneyStore
+from api.persistence import ApplicationStore, JourneyStore
 from core.models import Category, Offer, Structure
 from core.profile import Txn
 
@@ -43,8 +43,6 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 OFFERS_PATH = Path(__file__).resolve().parent.parent / "db" / "seed_offers.json"
 
 app = FastAPI(title="Financing Advisor API", version="0.1.0")
-
-_applications: dict[str, application_agent.ApplicationRecord] = {}
 
 
 class OffersRepo:
@@ -62,6 +60,7 @@ class OffersRepo:
 
 repo = OffersRepo(OFFERS_PATH)
 journey_store = JourneyStore(repo.offers, DATABASE_URL or None)
+application_store = ApplicationStore(DATABASE_URL or None)
 
 
 class ConnectRequest(BaseModel):
@@ -344,13 +343,13 @@ def application_draft(req: ApplicationDraftRequest):
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    _applications[record.application_id] = record
+    application_store.save(record)
     return record.to_dict()
 
 
 @app.get("/applications/{application_id}")
 def application_detail(application_id: str):
-    record = _applications.get(application_id)
+    record = application_store.get(application_id)
     if not record:
         raise HTTPException(404, "Unknown application_id.")
     return record.to_dict()
@@ -358,19 +357,21 @@ def application_detail(application_id: str):
 
 @app.post("/applications/{application_id}/submit")
 def application_submit(application_id: str):
-    record = _applications.get(application_id)
+    record = application_store.get(application_id)
     if not record:
         raise HTTPException(404, "Unknown application_id.")
     application_agent.submit(record)
+    application_store.save(record)
     return record.to_dict()
 
 
 @app.post("/applications/{application_id}/advance")
 def application_advance(application_id: str):
-    record = _applications.get(application_id)
+    record = application_store.get(application_id)
     if not record:
         raise HTTPException(404, "Unknown application_id.")
     session, match = _journey_match(record.journey_id, record.offer_id)
     final_status = application_agent.final_status_for(session["profile"], match)
     application_agent.advance(record, final_status)
+    application_store.save(record)
     return record.to_dict()

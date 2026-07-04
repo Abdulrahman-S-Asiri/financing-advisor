@@ -6,6 +6,7 @@ import os
 from decimal import Decimal
 from typing import Any
 
+from agents import application as application_agent
 from agents.events import AgentEvent, AgentEventType, AgentName
 from agents.orchestrator import JourneyResult
 from core import dbr
@@ -41,6 +42,33 @@ def _event_from_payload(payload: dict[str, Any]) -> AgentEvent:
         message_ar=payload["message_ar"],
         payload=payload.get("payload") or {},
         created_at=created_at,
+    )
+
+
+def _datetime_value(value: Any) -> str:
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return value
+
+
+def _application_from_payload(payload: dict[str, Any]) -> application_agent.ApplicationRecord:
+    return application_agent.ApplicationRecord(
+        application_id=str(payload["application_id"]),
+        journey_id=str(payload["journey_id"]),
+        offer_id=payload["offer_id"],
+        status=payload["status"],
+        summary=payload["summary"],
+        history=[
+            application_agent.ApplicationHistoryItem(
+                status=item["status"],
+                message_ar=item["message_ar"],
+                created_at=_datetime_value(item["created_at"]),
+            )
+            for item in payload["history"]
+        ],
+        simulation=payload["simulation"],
+        created_at=_datetime_value(payload["created_at"]),
+        updated_at=_datetime_value(payload["updated_at"]),
     )
 
 
@@ -316,3 +344,118 @@ class JourneyStore:
     def _cache(self, session: dict[str, Any]) -> None:
         self._journeys[session["journey_id"]] = session
         self._sessions[session["profile"].persona_id] = session
+
+
+class PostgresApplicationPersistence:
+    def __init__(self, database_url: str):
+        self.enabled = False
+        try:
+            from psycopg.rows import dict_row
+            from psycopg_pool import ConnectionPool
+        except ImportError:
+            logger.warning(
+                "DATABASE_URL is configured but psycopg is not installed; "
+                "applications will use in-memory storage only."
+            )
+            return
+
+        max_size = int(os.environ.get("DATABASE_POOL_MAX", "5"))
+        min_size = int(os.environ.get("DATABASE_POOL_MIN", "1"))
+        self._pool = ConnectionPool(
+            database_url,
+            min_size=min_size,
+            max_size=max_size,
+            kwargs={"autocommit": True, "row_factory": dict_row},
+            open=False,
+        )
+        self._pool.open(wait=False)
+        self.enabled = True
+
+    def save(self, record: application_agent.ApplicationRecord) -> None:
+        if not self.enabled:
+            return
+
+        from psycopg.types.json import Jsonb
+
+        with self._pool.connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO applications (
+                    application_id,
+                    journey_id,
+                    offer_id,
+                    status,
+                    summary,
+                    history,
+                    simulation,
+                    created_at,
+                    updated_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (application_id) DO UPDATE SET
+                    offer_id = EXCLUDED.offer_id,
+                    status = EXCLUDED.status,
+                    summary = EXCLUDED.summary,
+                    history = EXCLUDED.history,
+                    simulation = EXCLUDED.simulation,
+                    updated_at = EXCLUDED.updated_at
+                """,
+                (
+                    record.application_id,
+                    record.journey_id,
+                    record.offer_id,
+                    record.status,
+                    Jsonb(record.summary),
+                    Jsonb([item.__dict__ for item in record.history]),
+                    record.simulation,
+                    record.created_at,
+                    record.updated_at,
+                ),
+            )
+
+    def load(self, application_id: str) -> application_agent.ApplicationRecord | None:
+        if not self.enabled:
+            return None
+
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                """
+                SELECT application_id, journey_id, offer_id, status, summary,
+                       history, simulation, created_at, updated_at
+                FROM applications
+                WHERE application_id = %s
+                """,
+                (application_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return _application_from_payload(row)
+
+
+class ApplicationStore:
+    def __init__(self, database_url: str | None = None):
+        self._applications: dict[str, application_agent.ApplicationRecord] = {}
+        self._postgres = (
+            PostgresApplicationPersistence(database_url)
+            if database_url
+            else None
+        )
+
+    @property
+    def postgres_enabled(self) -> bool:
+        return bool(self._postgres and self._postgres.enabled)
+
+    def save(self, record: application_agent.ApplicationRecord) -> None:
+        self._applications[record.application_id] = record
+        if self._postgres:
+            self._postgres.save(record)
+
+    def get(self, application_id: str) -> application_agent.ApplicationRecord | None:
+        record = self._applications.get(application_id)
+        if record is not None:
+            return record
+        if self._postgres:
+            record = self._postgres.load(application_id)
+            if record is not None:
+                self._applications[application_id] = record
+        return record

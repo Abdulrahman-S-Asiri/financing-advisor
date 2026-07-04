@@ -81,9 +81,9 @@ api/  ──────────────  the platform API (:8000)
 db/   seed_offers.json (JSON-first offers repo) + schema.sql (Postgres path)
 ```
 
-Set `DATABASE_URL` to enable Postgres-backed journey snapshots and ordered
-agent trace events. Without it, the API keeps the same in-memory hot path for
-local demos and CI.
+Set `DATABASE_URL` to enable Postgres-backed journey snapshots, ordered agent
+trace events, and application status history. Without it, the API keeps the
+same in-memory hot path for local demos and CI.
 
 ## DBR rules encoded (verify before demo)
 
@@ -141,9 +141,9 @@ of inventing a cap.
   yet the official SAMA spec — align during enrichment (one adapter).
 - **Admin-fee cap** (1% / SAR 5,000 in seeds) — verify the current SAMA
   consumer-finance fee cap before the demo.
-- **Persistence is optional**; set `DATABASE_URL` to persist journey snapshots
-  and agent traces to Postgres. Without it, local demo sessions remain
-  in-memory.
+- **Persistence is optional**; set `DATABASE_URL` to persist journey snapshots,
+  agent traces, and application status history to Postgres. Without it, local
+  demo sessions remain in-memory.
 - **No auth, no real Open Banking, no application submission, no SME
   module** — cut by design; they are roadmap slides, not hackathon scope.
 - Salary/obligation detection is heuristic (documented in

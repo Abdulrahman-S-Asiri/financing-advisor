@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from api import main as api_main
 from api.main import app as api_app
-from api.persistence import JourneyStore
+from api.persistence import ApplicationStore, JourneyStore
 from mock_open_banking.main import app as ob_app
 
 
@@ -268,3 +268,44 @@ def test_postgres_journey_store_survives_hot_cache_miss():
         range(1, len(session["events"]) + 1)
     )
     assert session["matches"]
+
+
+def test_postgres_application_store_survives_hot_cache_miss():
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        pytest.skip("DATABASE_URL is not configured.")
+
+    if not api_main.application_store.postgres_enabled:
+        if os.environ.get("CI"):
+            raise AssertionError("DATABASE_URL is configured but Postgres is not enabled.")
+        pytest.skip("DATABASE_URL is configured but Postgres is not enabled locally.")
+
+    c = _client()
+    journey = c.post("/journey/connect", json={
+        "persona_id": "sara_strong",
+        "requested_amount": 60_000,
+        "requested_tenor_months": 36,
+        "age": 31,
+    }).json()
+    offer = next(
+        match for match in journey["matches"]
+        if match["status"] in ("eligible", "conditional", "policy_review")
+    )
+
+    draft = c.post("/applications/draft", json={
+        "journey_id": journey["journey_id"],
+        "offer_id": offer["offer_id"],
+    }).json()
+    submitted = c.post(f"/applications/{draft['application_id']}/submit").json()
+
+    cold_store = ApplicationStore(database_url)
+    assert cold_store.postgres_enabled
+    record = cold_store.get(draft["application_id"])
+
+    assert record is not None
+    assert record.application_id == draft["application_id"]
+    assert record.journey_id == journey["journey_id"]
+    assert record.offer_id == offer["offer_id"]
+    assert record.status == submitted["status"] == "submitted"
+    assert record.summary["product"] == offer["product"]
+    assert [item.status for item in record.history] == ["draft", "submitted"]

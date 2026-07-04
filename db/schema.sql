@@ -63,6 +63,25 @@ CREATE INDEX IF NOT EXISTS idx_journeys_persona_updated
 CREATE INDEX IF NOT EXISTS idx_agent_events_journey_sequence
     ON agent_events(journey_id, sequence);
 
+CREATE TABLE IF NOT EXISTS applications (
+    application_id UUID PRIMARY KEY,
+    journey_id     UUID NOT NULL REFERENCES journeys(journey_id) ON DELETE CASCADE,
+    offer_id       TEXT NOT NULL,
+    status         TEXT NOT NULL CHECK (
+        status IN ('draft','submitted','under_review','approved','declined')
+    ),
+    summary        JSONB NOT NULL,
+    history        JSONB NOT NULL DEFAULT '[]',
+    simulation     BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at     TIMESTAMPTZ NOT NULL,
+    updated_at     TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_applications_journey
+    ON applications(journey_id);
+CREATE INDEX IF NOT EXISTS idx_applications_status
+    ON applications(status);
+
 CREATE TABLE IF NOT EXISTS profiles (
     id                          BIGSERIAL PRIMARY KEY,
     persona_id                  TEXT NOT NULL,
