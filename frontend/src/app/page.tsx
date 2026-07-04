@@ -94,13 +94,17 @@ type ChatMessage = {
   text: string;
 };
 
-type ChatStreamEvent = {
+type SseEvent<T> = {
   event: string;
-  data: {
-    delta?: string;
-    reply?: string;
-    detail?: string;
-  };
+  id?: string;
+  retry?: string;
+  data: T;
+};
+
+type ChatStreamPayload = {
+  delta?: string;
+  reply?: string;
+  detail?: string;
 };
 
 type ApplicationHistoryItem = {
@@ -273,9 +277,11 @@ function statusCounts(matches: OfferMatch[]) {
   );
 }
 
-function parseChatStreamEvent(rawEvent: string): ChatStreamEvent | null {
+function parseSseEvent<T>(rawEvent: string): SseEvent<T> | null {
   const lines = rawEvent.split("\n");
   const eventLine = lines.find((line) => line.startsWith("event:"));
+  const idLine = lines.find((line) => line.startsWith("id:"));
+  const retryLine = lines.find((line) => line.startsWith("retry:"));
   const dataLines = lines.filter((line) => line.startsWith("data:"));
   if (dataLines.length === 0) {
     return null;
@@ -284,9 +290,11 @@ function parseChatStreamEvent(rawEvent: string): ChatStreamEvent | null {
   try {
     return {
       event: eventLine?.replace("event:", "").trim() ?? "message",
+      id: idLine?.replace("id:", "").trim(),
+      retry: retryLine?.replace("retry:", "").trim(),
       data: JSON.parse(
         dataLines.map((line) => line.replace(/^data:\s?/, "")).join("\n"),
-      ) as ChatStreamEvent["data"],
+      ) as T,
     };
   } catch {
     return null;
@@ -301,6 +309,7 @@ export default function Home() {
   const [age, setAge] = useState(personas[0].age);
   const [consent, setConsent] = useState(true);
   const [journey, setJourney] = useState<JourneyResponse | null>(null);
+  const [liveEvents, setLiveEvents] = useState<AgentEvent[]>([]);
   const [journeyError, setJourneyError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [filter, setFilter] = useState<"all" | MatchStatus>("all");
@@ -346,10 +355,17 @@ export default function Home() {
     event.preventDefault();
     setIsLoading(true);
     setJourneyError("");
+    setJourney(null);
+    setLiveEvents([]);
+    setFilter("all");
+    setChatMessages([]);
+    setChatError("");
+    setApplication(null);
+    setApplicationError("");
+    setActiveStage("define");
 
-    // Calls the deterministic backend and moves the user into the analysis stage.
     try {
-      const response = await fetch("/backend/journey/connect", {
+      const response = await fetch("/backend/journey/connect/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -366,15 +382,63 @@ export default function Home() {
         throw new Error(body?.detail ?? "تعذر تشغيل رحلة التمويل.");
       }
 
-      const body = (await response.json()) as JourneyResponse;
-      setJourney(body);
-      setFilter("all");
-      setChatMessages([]);
-      setChatError("");
-      setApplication(null);
-      setApplicationError("");
-      setActiveStage("define");
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("تعذر قراءة بث رحلة التمويل.");
+      }
+
+      const streamedEvents: AgentEvent[] = [];
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let completedJourney: JourneyResponse | null = null;
+
+      const handleFrame = (rawEvent: string) => {
+        const parsed = parseSseEvent<AgentEvent>(rawEvent);
+        if (!parsed) {
+          return;
+        }
+
+        const agentEvent = parsed.data;
+        streamedEvents.push(agentEvent);
+        setLiveEvents([...streamedEvents]);
+
+        if (parsed.event === "journey_completed") {
+          const payload = agentEvent.payload as unknown as Omit<
+            JourneyResponse,
+            "events"
+          >;
+          completedJourney = {
+            ...payload,
+            events: [...streamedEvents],
+          };
+          setJourney(completedJourney);
+        }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split("\n\n");
+        buffer = events.pop() ?? "";
+
+        for (const rawEvent of events) {
+          handleFrame(rawEvent);
+        }
+      }
+
+      if (buffer.trim()) {
+        handleFrame(buffer);
+      }
+
+      if (!completedJourney) {
+        throw new Error("لم يكتمل بث رحلة التمويل.");
+      }
     } catch (error) {
+      setActiveStage("discover");
       setJourneyError(error instanceof Error ? error.message : "حدث خطأ غير متوقع.");
     } finally {
       setIsLoading(false);
@@ -455,7 +519,7 @@ export default function Home() {
         buffer = events.pop() ?? "";
 
         for (const rawEvent of events) {
-          const parsed = parseChatStreamEvent(rawEvent);
+          const parsed = parseSseEvent<ChatStreamPayload>(rawEvent);
           if (parsed?.event === "delta" && parsed.data.delta) {
             appendAdvisorDelta(parsed.data.delta);
           }
@@ -466,7 +530,7 @@ export default function Home() {
       }
 
       if (buffer.trim()) {
-        const parsed = parseChatStreamEvent(buffer);
+        const parsed = parseSseEvent<ChatStreamPayload>(buffer);
         if (parsed?.event === "delta" && parsed.data.delta) {
           appendAdvisorDelta(parsed.data.delta);
         }
@@ -617,7 +681,12 @@ export default function Home() {
         )}
 
         {activeStage === "define" && (
-          <DefineStage journey={journey} onBack={() => setActiveStage("discover")} />
+          <DefineStage
+            isLoading={isLoading}
+            journey={journey}
+            liveEvents={liveEvents}
+            onBack={() => setActiveStage("discover")}
+          />
         )}
 
         {activeStage === "develop" && (
@@ -761,14 +830,41 @@ function DiscoverStage({
 }
 
 function DefineStage({
+  isLoading,
+  liveEvents,
   journey,
   onBack,
 }: {
+  isLoading: boolean;
+  liveEvents: AgentEvent[];
   journey: JourneyResponse | null;
   onBack: () => void;
 }) {
   if (!journey) {
-    return <EmptyState actionLabel="اختيار عميل" onAction={onBack} title="ابدأ من مرحلة الاكتشاف" />;
+    if (isLoading || liveEvents.length > 0) {
+      return (
+        <div className="stageContent">
+          <section className="analysisPanel">
+            <div>
+              <p className="eyebrow">Define</p>
+              <h3>جاري التحليل</h3>
+            </div>
+          </section>
+          {liveEvents.length > 0 ? (
+            <AgentTimeline events={liveEvents} />
+          ) : (
+            <EmptyState title="جاري الاتصال" />
+          )}
+        </div>
+      );
+    }
+    return (
+      <EmptyState
+        actionLabel="اختيار عميل"
+        onAction={onBack}
+        title="ابدأ من مرحلة الاكتشاف"
+      />
+    );
   }
 
   const profile = journey.profile;
