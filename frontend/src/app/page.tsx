@@ -86,6 +86,20 @@ type DbrDecision = {
   policy_review: boolean;
 };
 
+type FinancialHealth = {
+  tier: string;
+  salary_linked_ratio: number;
+  non_real_estate_ratio: number;
+  total_ratio: number;
+  salary_linked_cap: number;
+  non_real_estate_cap: number | null;
+  total_cap: number | null;
+  policy_review: boolean;
+  breaches: string[];
+  max_affordable_new_installment: number;
+  monthly_obligations: number;
+};
+
 type OfferMatch = {
   offer_id: string;
   institution: string;
@@ -110,6 +124,7 @@ type JourneyResponse = {
   journey_id: string;
   profile: FinancialProfile;
   max_affordable_new_installment: number;
+  financial_health: FinancialHealth;
   matches: OfferMatch[];
   events: AgentEvent[];
   suggested_questions: string[];
@@ -277,6 +292,11 @@ function formatPercent(value: number | null | undefined) {
 
 function formatCap(value: number | null) {
   return value === null ? "سياسة الممول" : formatPercent(value);
+}
+
+function gaugePercent(value: number, cap: number | null) {
+  const denominator = cap && cap > 0 ? cap : 1;
+  return Math.min(100, Math.max(0, (value / denominator) * 100));
 }
 
 function formatNearMiss(suggestion: NearMissSuggestion) {
@@ -1030,6 +1050,8 @@ function DefineStage({
         <MetricCard label="ثبات الراتب" value={formatPercent(profile.salary_stability_score)} />
       </section>
 
+      <FinancialHealthDashboard health={journey.financial_health} />
+
       <AgentTimeline events={journey.events} />
 
       <section className="analysisPanel">
@@ -1073,6 +1095,80 @@ function DefineStage({
         )}
       </section>
     </div>
+  );
+}
+
+function FinancialHealthDashboard({ health }: { health: FinancialHealth }) {
+  const gauges = [
+    {
+      key: "salary-linked",
+      label: "التزامات مرتبطة بالراتب",
+      ratio: health.salary_linked_ratio,
+      cap: health.salary_linked_cap,
+    },
+    {
+      key: "non-real-estate",
+      label: "التزامات غير عقارية",
+      ratio: health.non_real_estate_ratio,
+      cap: health.non_real_estate_cap,
+    },
+    {
+      key: "total",
+      label: "إجمالي الالتزامات",
+      ratio: health.total_ratio,
+      cap: health.total_cap,
+    },
+  ];
+
+  return (
+    <section className="healthPanel" aria-label="لوحة الصحة المالية">
+      <div className="panelHeading">
+        <div>
+          <p className="eyebrow">Health</p>
+          <h3>الصحة المالية</h3>
+        </div>
+        <span className="connectionPill">شريحة {health.tier}</span>
+      </div>
+
+      <div className="healthSummary">
+        <div>
+          <span>الالتزامات الحالية</span>
+          <strong>{formatSar(health.monthly_obligations)}</strong>
+        </div>
+        <div>
+          <span>مساحة قسط جديدة</span>
+          <strong>{formatSar(health.max_affordable_new_installment)}</strong>
+        </div>
+        <div>
+          <span>حالة السياسة</span>
+          <strong>{health.policy_review ? "مراجعة ممول" : "حدود محددة"}</strong>
+        </div>
+      </div>
+
+      <div className="gaugeGrid">
+        {gauges.map((gauge) => (
+          <article key={gauge.key} className="gaugeCard">
+            <div className="gaugeMeta">
+              <strong>{gauge.label}</strong>
+              <span>
+                {formatPercent(gauge.ratio)} / {formatCap(gauge.cap)}
+              </span>
+            </div>
+            <div className="gaugeTrack" aria-hidden="true">
+              <span style={{ width: `${gaugePercent(gauge.ratio, gauge.cap)}%` }} />
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {health.breaches.length > 0 && (
+        <div className="healthBreaches">
+          {health.breaches.map((breach) => (
+            <p key={breach}>{breach}</p>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

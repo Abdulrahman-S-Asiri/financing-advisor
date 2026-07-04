@@ -63,6 +63,14 @@ def test_journey_borderline_persona_has_mixed_outcomes():
     assert body["profile"]["obligation_trend"] == "stable"
     assert body["profile"]["confidence_level"] == "high"
     assert body["max_affordable_new_installment"] > 0
+    assert body["financial_health"]["tier"] == "<=15k"
+    assert body["financial_health"]["salary_linked_ratio"] > 0
+    assert body["financial_health"]["salary_linked_cap"] > 0
+    assert body["financial_health"]["monthly_obligations"] > 0
+    assert (
+        body["financial_health"]["max_affordable_new_installment"]
+        == body["max_affordable_new_installment"]
+    )
     assert body["suggested_questions"]
 
     statuses = {m["status"] for m in body["matches"]}

@@ -28,6 +28,30 @@ def _dbr_payload(match: MatchResult) -> dict | None:
     }
 
 
+def _financial_health_payload(
+    profile: FinancialProfile,
+    max_affordable: float,
+) -> dict:
+    current_dbr = dbr.evaluate(
+        profile,
+        new_installment=0.0,
+        new_is_salary_linked=True,
+    )
+    return {
+        "tier": current_dbr.tier,
+        "salary_linked_ratio": current_dbr.salary_linked_ratio,
+        "non_real_estate_ratio": current_dbr.non_real_estate_ratio,
+        "total_ratio": current_dbr.total_ratio,
+        "salary_linked_cap": current_dbr.salary_linked_cap,
+        "non_real_estate_cap": current_dbr.non_real_estate_cap,
+        "total_cap": current_dbr.total_cap,
+        "policy_review": current_dbr.policy_review,
+        "breaches": current_dbr.breaches,
+        "max_affordable_new_installment": max_affordable,
+        "monthly_obligations": _obligations_total(profile),
+    }
+
+
 def serialize_match(match: MatchResult) -> dict:
     return {
         "offer_id": match.offer.id,
@@ -109,6 +133,7 @@ def serialize_journey(
             "total_monthly_income": profile.total_monthly_income,
         },
         "max_affordable_new_installment": max_affordable,
+        "financial_health": _financial_health_payload(profile, max_affordable),
         "matches": [serialize_match(match) for match in matches],
         "suggested_questions": suggested_questions(matches),
     }

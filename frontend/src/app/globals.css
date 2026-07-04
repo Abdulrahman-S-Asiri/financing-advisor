@@ -293,6 +293,7 @@ h3 {
 .requestPanel,
 .analysisPanel,
 .agentTimeline,
+.healthPanel,
 .comparisonHeader,
 .comparePanel,
 .offerCard,
@@ -337,6 +338,7 @@ h3 {
 .requestPanel,
 .analysisPanel,
 .agentTimeline,
+.healthPanel,
 .recommendationPanel,
 .advisorPanel,
 .comparisonHeader,
@@ -443,6 +445,91 @@ input:focus {
   display: block;
   margin-top: 0.45rem;
   font-size: 1.45rem;
+}
+
+.healthPanel {
+  display: grid;
+  gap: 1rem;
+}
+
+.healthSummary,
+.gaugeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.healthSummary div,
+.gaugeCard {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8faf9;
+  padding: 0.85rem;
+}
+
+.healthSummary span,
+.gaugeMeta span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.healthSummary strong {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 1.15rem;
+  overflow-wrap: anywhere;
+}
+
+.gaugeCard {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.gaugeMeta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.gaugeMeta strong {
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.gaugeMeta span {
+  text-align: left;
+  white-space: nowrap;
+}
+
+.gaugeTrack {
+  height: 0.8rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dfe8e5;
+}
+
+.gaugeTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--teal);
+}
+
+.healthBreaches {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.healthBreaches p {
+  margin: 0;
+  border-right: 3px solid var(--red);
+  color: var(--muted);
+  line-height: 1.6;
+  padding-right: 0.65rem;
 }
 
 .timelineHeading span {
@@ -1063,6 +1150,8 @@ input:focus {
   .diamondMap,
   .personaGrid,
   .metricsGrid,
+  .healthSummary,
+  .gaugeGrid,
   .timelineList,
   .formGrid,
   .profileFacts,
