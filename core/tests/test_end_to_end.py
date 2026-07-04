@@ -10,7 +10,7 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 
-from agents import llm_client
+from agents import advisor, llm_client
 from api import main as api_main
 from api.main import app as api_app
 from api.persistence import ApplicationStore, JourneyStore
@@ -109,6 +109,37 @@ def test_journey_borderline_persona_has_mixed_outcomes():
     assert body["events"][0]["type"] == "agent_started"
     assert body["events"][-1]["type"] == "journey_completed"
     assert body["events"][-1]["payload"]["journey_id"] == body["journey_id"]
+
+
+def test_seeded_journey_and_advisor_payloads_stay_lightweight():
+    c = _client()
+    r = c.post("/journey/connect", json={
+        "persona_id": "sara_strong",
+        "requested_amount": 60_000,
+        "requested_tenor_months": 36,
+        "age": 31,
+    })
+    assert r.status_code == 200, r.text
+    body = r.json()
+
+    payload_bytes = len(json.dumps(body, ensure_ascii=False))
+    match_bytes = [
+        len(json.dumps(match, ensure_ascii=False))
+        for match in body["matches"]
+    ]
+    assert payload_bytes < 32_000
+    assert max(match_bytes) < 2_000
+    assert all("payment_schedule" not in match for match in body["matches"])
+
+    session = api_main.journey_store.get_by_journey(body["journey_id"])
+    context = advisor.build_context(
+        session["profile"],
+        session["matches"],
+        session["max_affordable"],
+    )
+    assert len(context) < 12_000
+    assert '"payment_schedule":' not in context
+    assert '"payment_schedule_months":' in context
 
 
 def test_journey_stream_emits_sse_events():
