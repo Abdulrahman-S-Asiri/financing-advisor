@@ -85,6 +85,7 @@ def test_journey_borderline_persona_has_mixed_outcomes():
 
     # Unverified placeholder rates are flagged all the way to the response
     assert all("rate_verified" in m for m in body["matches"])
+    assert all("category" in m for m in body["matches"])
     assert all("near_miss_suggestions" in m for m in body["matches"])
     assert all("dbr" in m for m in body["matches"])
     assert any(m["dbr"] and m["dbr"]["breaches"] for m in body["matches"])

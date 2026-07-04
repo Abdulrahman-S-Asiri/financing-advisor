@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useState } from "react";
 
 type StageKey = "discover" | "define" | "develop" | "deliver";
 type MatchStatus = "eligible" | "conditional" | "ineligible" | "policy_review";
+type SortMode = "ranked" | "apr" | "installment" | "total";
 
 type Persona = {
   id: string;
@@ -104,6 +105,7 @@ type OfferMatch = {
   offer_id: string;
   institution: string;
   product: string;
+  category: string;
   structure: string;
   status: MatchStatus;
   monthly_installment: number | null;
@@ -229,6 +231,20 @@ const statusFilters: Array<{ key: "all" | MatchStatus; label: string }> = [
   { key: "ineligible", label: "غير مؤهل" },
 ];
 
+const structureFilters: Array<{ key: "all" | string; label: string }> = [
+  { key: "all", label: "كل الهياكل" },
+  { key: "tawarruq", label: "تورق" },
+  { key: "murabaha", label: "مرابحة" },
+  { key: "ijarah", label: "إجارة" },
+];
+
+const sortOptions: Array<{ key: SortMode; label: string }> = [
+  { key: "ranked", label: "ترتيب المحرك" },
+  { key: "apr", label: "APR الأقل" },
+  { key: "installment", label: "القسط الأقل" },
+  { key: "total", label: "الإجمالي الأقل" },
+];
+
 const agentLabels: Record<string, string> = {
   financial_profile: "الملف المالي",
   matching: "المطابقة",
@@ -327,6 +343,19 @@ function statusCounts(matches: OfferMatch[]) {
   );
 }
 
+function sortableValue(match: OfferMatch, sortMode: SortMode) {
+  if (sortMode === "apr") {
+    return match.apr_effective ?? Number.POSITIVE_INFINITY;
+  }
+  if (sortMode === "installment") {
+    return match.monthly_installment ?? Number.POSITIVE_INFINITY;
+  }
+  if (sortMode === "total") {
+    return match.total_amount_payable ?? Number.POSITIVE_INFINITY;
+  }
+  return 0;
+}
+
 function parseSseEvent<T>(rawEvent: string): SseEvent<T> | null {
   const lines = rawEvent.split("\n");
   const eventLine = lines.find((line) => line.startsWith("event:"));
@@ -363,6 +392,8 @@ export default function Home() {
   const [journeyError, setJourneyError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [filter, setFilter] = useState<"all" | MatchStatus>("all");
+  const [structureFilter, setStructureFilter] = useState("all");
+  const [sortMode, setSortMode] = useState<SortMode>("ranked");
   const [chatInput, setChatInput] = useState("ما أفضل خيار متاح ولماذا؟");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatError, setChatError] = useState("");
@@ -389,11 +420,20 @@ export default function Home() {
     if (!journey) {
       return [];
     }
-    if (filter === "all") {
-      return activeMatches;
+    let matches = activeMatches;
+    if (filter !== "all") {
+      matches = matches.filter((match) => match.status === filter);
     }
-    return activeMatches.filter((match) => match.status === filter);
-  }, [journey, activeMatches, filter]);
+    if (structureFilter !== "all") {
+      matches = matches.filter((match) => match.structure === structureFilter);
+    }
+    if (sortMode === "ranked") {
+      return matches;
+    }
+    return [...matches].sort(
+      (a, b) => sortableValue(a, sortMode) - sortableValue(b, sortMode),
+    );
+  }, [journey, activeMatches, filter, structureFilter, sortMode]);
 
   const compareMatches = useMemo(
     () =>
@@ -424,6 +464,9 @@ export default function Home() {
     setSimulatorSalaryTransfer(false);
     setSimulatedMatches(null);
     setCompareOfferIds([]);
+    setFilter("all");
+    setStructureFilter("all");
+    setSortMode("ranked");
   }
 
   async function submitJourney(event: FormEvent<HTMLFormElement>) {
@@ -433,6 +476,8 @@ export default function Home() {
     setJourney(null);
     setLiveEvents([]);
     setFilter("all");
+    setStructureFilter("all");
+    setSortMode("ranked");
     setChatMessages([]);
     setChatError("");
     setApplication(null);
@@ -851,8 +896,12 @@ export default function Home() {
             simulatorError={simulatorError}
             simulatorSalaryTransfer={simulatorSalaryTransfer}
             simulatorTenor={simulatorTenor}
+            sortMode={sortMode}
+            structureFilter={structureFilter}
             visibleMatches={visibleMatches}
             onFilterChange={setFilter}
+            onSortModeChange={setSortMode}
+            onStructureFilterChange={setStructureFilter}
             onSimulatorAmountChange={updateSimulatorAmount}
             onSimulatorReset={resetSimulation}
             onSimulatorRun={runSimulation}
@@ -1214,8 +1263,12 @@ function DevelopStage({
   simulatorError,
   simulatorSalaryTransfer,
   simulatorTenor,
+  sortMode,
+  structureFilter,
   visibleMatches,
   onFilterChange,
+  onSortModeChange,
+  onStructureFilterChange,
   onSimulatorAmountChange,
   onSimulatorReset,
   onSimulatorRun,
@@ -1233,8 +1286,12 @@ function DevelopStage({
   simulatorError: string;
   simulatorSalaryTransfer: boolean;
   simulatorTenor: number;
+  sortMode: SortMode;
+  structureFilter: string;
   visibleMatches: OfferMatch[];
   onFilterChange: (value: "all" | MatchStatus) => void;
+  onSortModeChange: (value: SortMode) => void;
+  onStructureFilterChange: (value: string) => void;
   onSimulatorAmountChange: (value: number) => void;
   onSimulatorReset: () => void;
   onSimulatorRun: () => void;
@@ -1260,6 +1317,33 @@ function DevelopStage({
               className={filter === item.key ? "segmentActive" : ""}
               type="button"
               onClick={() => onFilterChange(item.key)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="marketControls" aria-label="فرز وتصفية العروض">
+        <div className="segmentedControl" aria-label="تصفية هيكل التمويل">
+          {structureFilters.map((item) => (
+            <button
+              key={item.key}
+              className={structureFilter === item.key ? "segmentActive" : ""}
+              type="button"
+              onClick={() => onStructureFilterChange(item.key)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <div className="segmentedControl" aria-label="ترتيب العروض">
+          {sortOptions.map((item) => (
+            <button
+              key={item.key}
+              className={sortMode === item.key ? "segmentActive" : ""}
+              type="button"
+              onClick={() => onSortModeChange(item.key)}
             >
               {item.label}
             </button>
@@ -1331,17 +1415,21 @@ function DevelopStage({
       )}
 
       <section className="offersList" aria-label="نتائج العروض">
-        {visibleMatches.map((match) => (
-          <OfferCard
-            key={match.offer_id}
-            compareDisabled={
-              compareOfferIds.length >= 3 && !compareOfferIds.includes(match.offer_id)
-            }
-            compareSelected={compareOfferIds.includes(match.offer_id)}
-            match={match}
-            onCompareToggle={onToggleCompare}
-          />
-        ))}
+        {visibleMatches.length > 0 ? (
+          visibleMatches.map((match) => (
+            <OfferCard
+              key={match.offer_id}
+              compareDisabled={
+                compareOfferIds.length >= 3 && !compareOfferIds.includes(match.offer_id)
+              }
+              compareSelected={compareOfferIds.includes(match.offer_id)}
+              match={match}
+              onCompareToggle={onToggleCompare}
+            />
+          ))
+        ) : (
+          <EmptyState title="لا توجد عروض مطابقة" />
+        )}
       </section>
     </div>
   );

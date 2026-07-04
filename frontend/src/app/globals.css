@@ -295,6 +295,7 @@ h3 {
 .agentTimeline,
 .healthPanel,
 .comparisonHeader,
+.marketControls,
 .comparePanel,
 .offerCard,
 .recommendationPanel,
@@ -342,6 +343,7 @@ h3 {
 .recommendationPanel,
 .advisorPanel,
 .comparisonHeader,
+.marketControls,
 .comparePanel,
 .emptyState {
   padding: 1.25rem;
@@ -762,6 +764,15 @@ input:focus {
   flex-wrap: wrap;
   gap: 0.45rem;
   justify-content: flex-end;
+}
+
+.marketControls {
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .segmentedControl button {

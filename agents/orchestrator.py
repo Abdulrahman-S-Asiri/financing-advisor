@@ -57,6 +57,7 @@ def serialize_match(match: MatchResult) -> dict:
         "offer_id": match.offer.id,
         "institution": match.offer.institution,
         "product": match.offer.product_name,
+        "category": match.offer.category.value,
         "structure": match.offer.structure.value,
         "status": match.status.value,
         "monthly_installment": (
