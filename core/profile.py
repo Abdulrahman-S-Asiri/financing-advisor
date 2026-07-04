@@ -17,9 +17,8 @@ sent to an LLM *categorizer* (agents layer) that maps description -> category.
 The LLM never invents amounts, never computes ratios, never decides
 eligibility. Numbers stay here.
 
-TEAM TODO: field names below assume the mock AIS schema in
-mock_open_banking/. When aligning to the published SAMA AIS spec, update
-`Txn.from_ais` only — the rest of the pipeline reads the dataclass.
+`Txn.from_ais` centralizes AIS field normalization so provider-specific
+payload shapes do not leak into the deterministic engine.
 """
 from __future__ import annotations
 
@@ -58,14 +57,62 @@ class Txn:
 
     @classmethod
     def from_ais(cls, raw: dict, bank: str) -> "Txn":
-        # Mock AIS shape; adjust here when adopting the official SAMA spec.
+        booking_datetime = _first_present(
+            raw,
+            "BookingDateTime",
+            "bookingDateTime",
+            "ValueDateTime",
+            "valueDateTime",
+        )
+        amount_payload = _first_present(raw, "Amount", "amount")
+        credit_debit = str(
+            _first_present(raw, "CreditDebitIndicator", "creditDebitIndicator")
+        )
+        if credit_debit.lower() not in {"credit", "debit"}:
+            raise ValueError(f"Unsupported credit/debit indicator: {credit_debit}")
+
         return cls(
-            booking_month=raw["bookingDateTime"][:7],
-            amount=float(raw["amount"]["amount"]),
-            credit=raw["creditDebitIndicator"] == "Credit",
-            description=raw.get("transactionInformation", "").upper(),
+            booking_month=str(booking_datetime)[:7],
+            amount=_amount_value(amount_payload),
+            credit=credit_debit.lower() == "credit",
+            description=_transaction_description(raw),
             bank=bank,
         )
+
+
+def _first_present(raw: dict, *keys: str):
+    for key in keys:
+        value = raw.get(key)
+        if value not in (None, ""):
+            return value
+    raise KeyError(f"Missing required AIS field. Expected one of: {', '.join(keys)}")
+
+
+def _amount_value(value) -> float:
+    if isinstance(value, dict):
+        value = _first_present(value, "Amount", "amount")
+    return float(value)
+
+
+def _transaction_description(raw: dict) -> str:
+    for key in (
+        "TransactionInformation",
+        "transactionInformation",
+        "TransactionReference",
+        "transactionReference",
+        "Description",
+        "description",
+    ):
+        value = raw.get(key)
+        if value:
+            return str(value).upper()
+
+    merchant = raw.get("MerchantDetails") or raw.get("merchantDetails")
+    if isinstance(merchant, dict):
+        merchant_name = merchant.get("MerchantName") or merchant.get("merchantName")
+        if merchant_name:
+            return str(merchant_name).upper()
+    return ""
 
 
 def _has(desc: str, keywords: tuple[str, ...]) -> bool:

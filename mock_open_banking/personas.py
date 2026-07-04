@@ -77,16 +77,14 @@ _MERCHANTS = [
 
 
 def _txn(month: str, day: int, amount: float, credit: bool, desc: str) -> dict:
-    """Mock AIS transaction shape. TEAM TODO: align field names with the
-    published SAMA AIS spec during enrichment; core.profile.Txn.from_ais is
-    the single adapter to update."""
+    """Mock AIS transaction shape normalized by core.profile.Txn.from_ais."""
     return {
-        "transactionId": f"{month}-{day:02d}-{abs(hash(desc)) % 99999}",
-        "bookingDateTime": f"{month}-{day:02d}T09:00:00+03:00",
-        "creditDebitIndicator": "Credit" if credit else "Debit",
-        "amount": {"amount": f"{amount:.2f}", "currency": "SAR"},
-        "transactionInformation": desc,
-        "status": "Booked",
+        "TransactionId": f"{month}-{day:02d}-{abs(hash(desc)) % 99999}",
+        "BookingDateTime": f"{month}-{day:02d}T09:00:00+03:00",
+        "CreditDebitIndicator": "Credit" if credit else "Debit",
+        "Amount": {"Amount": f"{amount:.2f}", "Currency": "SAR"},
+        "TransactionInformation": desc,
+        "Status": "Booked",
     }
 
 
@@ -111,19 +109,19 @@ def generate_transactions(persona_id: str) -> list[dict]:
 def account_for(persona_id: str) -> dict:
     spec = PERSONAS[persona_id]
     return {
-        "accountId": f"acc-{persona_id}",
-        "currency": "SAR",
-        "accountType": "Personal",
-        "accountSubType": "CurrentAccount",
-        "nickname": spec.bank,
-        "servicer": {"name": spec.bank},
+        "AccountId": f"acc-{persona_id}",
+        "Currency": "SAR",
+        "AccountType": "Personal",
+        "AccountSubType": "CurrentAccount",
+        "Nickname": spec.bank,
+        "Servicer": {"Name": spec.bank},
     }
 
 
 def balance_for(persona_id: str) -> dict:
     spec = PERSONAS[persona_id]
     return {
-        "accountId": f"acc-{persona_id}",
-        "amount": {"amount": f"{spec.salary * 1.4:.2f}", "currency": "SAR"},
-        "type": "InterimAvailable",
+        "AccountId": f"acc-{persona_id}",
+        "Amount": {"Amount": f"{spec.salary * 1.4:.2f}", "Currency": "SAR"},
+        "Type": "InterimAvailable",
     }

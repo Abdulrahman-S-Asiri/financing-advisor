@@ -11,6 +11,41 @@ def _txn(month: str, amount: float, credit: bool, description: str) -> Txn:
     )
 
 
+def test_txn_from_ais_accepts_pascal_case_transaction():
+    txn = Txn.from_ais(
+        {
+            "BookingDateTime": "2026-01-27T09:00:00+03:00",
+            "CreditDebitIndicator": "Credit",
+            "Amount": {"Amount": "12500.50", "Currency": "SAR"},
+            "TransactionInformation": "salary payroll",
+        },
+        bank="Bank A",
+    )
+
+    assert txn.booking_month == "2026-01"
+    assert txn.amount == 12500.50
+    assert txn.credit is True
+    assert txn.description == "SALARY PAYROLL"
+    assert txn.bank == "Bank A"
+
+
+def test_txn_from_ais_keeps_legacy_mock_compatibility():
+    txn = Txn.from_ais(
+        {
+            "bookingDateTime": "2026-02-28T09:00:00+03:00",
+            "creditDebitIndicator": "Debit",
+            "amount": {"amount": "750.00", "currency": "SAR"},
+            "transactionInformation": "tabby subscription plan",
+        },
+        bank="Bank A",
+    )
+
+    assert txn.booking_month == "2026-02"
+    assert txn.amount == 750.00
+    assert txn.credit is False
+    assert txn.description == "TABBY SUBSCRIPTION PLAN"
+
+
 def test_categorizer_marks_ambiguous_credit_as_other_income():
     txns = []
     for month in ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06"]:

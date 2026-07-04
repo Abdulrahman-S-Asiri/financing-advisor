@@ -148,8 +148,9 @@ of inventing a cap.
   `GET /offers/verification` to check source coverage, stale verified rates,
   and the current gap to the target catalog size. Use
   `GET /offers/review-checklist.csv` as the working review export.
-- **AIS field names** follow the common Open Banking envelope style, not
-  yet the official SAMA spec — align during enrichment (one adapter).
+- **AIS field names** now accept PascalCase AIS-style transaction/account
+  payloads and the previous mock camelCase shape at the adapter boundary.
+  Re-check the exact SAMA swagger before connecting a licensed provider.
 - **Admin-fee cap** (1% / SAR 5,000 in seeds) — verify the current SAMA
   consumer-finance fee cap before the demo.
 - **Persistence is optional**; set `DATABASE_URL` to persist journey snapshots,

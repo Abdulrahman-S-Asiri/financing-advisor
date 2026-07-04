@@ -103,6 +103,25 @@ def _ob_client() -> httpx.Client:
     return httpx.Client(base_url=MOCK_OB_BASE_URL, timeout=10)
 
 
+def _field(raw: dict, *keys: str):
+    for key in keys:
+        value = raw.get(key)
+        if value not in (None, ""):
+            return value
+    raise KeyError(f"Missing required field. Expected one of: {', '.join(keys)}")
+
+
+def _account_id(account: dict) -> str:
+    return str(_field(account, "AccountId", "accountId"))
+
+
+def _servicer_name(account: dict) -> str:
+    servicer = _field(account, "Servicer", "servicer")
+    if isinstance(servicer, dict):
+        return str(_field(servicer, "Name", "name"))
+    return str(servicer)
+
+
 @app.get("/offers")
 def list_offers():
     return {"count": len(repo.offers), "offers": [o.__dict__ for o in repo.offers]}
@@ -145,18 +164,20 @@ def _open_banking_transactions(req: ConnectRequest) -> tuple[str, list[dict]]:
             account = accounts.json()["Data"]["Account"][0]
 
             txns_resp = client.get(
-                f"/accounts/{account['accountId']}/transactions",
+                f"/accounts/{_account_id(account)}/transactions",
                 params={"consent_id": consent_id},
             )
             txns_resp.raise_for_status()
             raw_txns = txns_resp.json()["Data"]["Transaction"]
-            bank = account["servicer"]["name"]
+            bank = _servicer_name(account)
     except httpx.ConnectError as exc:
         raise HTTPException(
             503,
             f"Mock Open Banking service unreachable at {MOCK_OB_BASE_URL}. "
             f"Start it: uvicorn mock_open_banking.main:app --port 8100",
         ) from exc
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(502, f"Invalid Open Banking account payload: {exc}") from exc
     return bank, raw_txns
 
 
@@ -170,7 +191,10 @@ def _store_journey(
 
 def _run_connected_journey(req: ConnectRequest) -> orchestrator.JourneyResult:
     bank, raw_txns = _open_banking_transactions(req)
-    txns = [Txn.from_ais(t, bank=bank) for t in raw_txns]
+    try:
+        txns = [Txn.from_ais(t, bank=bank) for t in raw_txns]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(502, f"Invalid Open Banking transaction payload: {exc}") from exc
     result = orchestrator.run_journey(
         persona_id=req.persona_id,
         txns=txns,
