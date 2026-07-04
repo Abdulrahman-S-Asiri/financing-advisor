@@ -4,6 +4,7 @@ The API's httpx client is pointed at the mock OB FastAPI app in-process via
 ASGITransport — no ports, no network, runs in CI and on any laptop. This is
 the test that says "Day 1 is already done" the moment you clone the repo.
 """
+import json
 import os
 
 import pytest
@@ -20,6 +21,27 @@ def _client() -> TestClient:
     # API's client factory: the API "calls" the mock OB service in-process.
     api_app.state.ob_client_factory = lambda: TestClient(ob_app)
     return TestClient(api_app)
+
+
+def _parse_sse_frames(raw: str) -> list[dict]:
+    frames: list[dict] = []
+    for block in raw.strip().split("\n\n"):
+        frame: dict[str, object] = {"data_lines": []}
+        for line in block.splitlines():
+            if line.startswith(":") or ":" not in line:
+                continue
+            field, value = line.split(":", 1)
+            value = value[1:] if value.startswith(" ") else value
+            if field == "data":
+                frame["data_lines"].append(value)
+            else:
+                frame[field] = value
+        if frame["data_lines"]:
+            frame["data"] = json.loads("\n".join(frame.pop("data_lines")))
+        else:
+            frame.pop("data_lines")
+        frames.append(frame)
+    return frames
 
 
 def test_journey_borderline_persona_has_mixed_outcomes():
@@ -80,10 +102,41 @@ def test_journey_stream_emits_sse_events():
     })
     assert r.status_code == 200, r.text
     assert r.headers["content-type"].startswith("text/event-stream")
-    assert "event: agent_started" in r.text
-    assert "event: tool_called" in r.text
-    assert "event: journey_completed" in r.text
-    assert '"journey_id"' in r.text
+    frames = _parse_sse_frames(r.text)
+    payloads = [frame["data"] for frame in frames]
+
+    assert [int(frame["id"]) for frame in frames] == list(
+        range(1, len(frames) + 1)
+    )
+    assert all(frame["retry"] == "3000" for frame in frames)
+    assert [frame["event"] for frame in frames] == [
+        payload["type"] for payload in payloads
+    ]
+    assert [payload["sequence"] for payload in payloads] == list(
+        range(1, len(payloads) + 1)
+    )
+    for payload in payloads:
+        assert {
+            "journey_id",
+            "sequence",
+            "type",
+            "agent",
+            "message_ar",
+            "payload",
+            "created_at",
+        } <= payload.keys()
+        assert payload["journey_id"]
+        assert payload["message_ar"]
+        assert payload["created_at"]
+
+    assert frames[0]["event"] == "agent_started"
+    assert "tool_called" in {frame["event"] for frame in frames}
+    assert frames[-1]["event"] == "journey_completed"
+    assert (
+        frames[-1]["data"]["payload"]["journey_id"]
+        == frames[-1]["data"]["journey_id"]
+    )
+    assert frames[-1]["data"]["payload"]["matches"]
 
 
 def test_journey_rejected_persona_explains_why():
@@ -272,9 +325,21 @@ def test_advisor_chat_stream_emits_guarded_sse(monkeypatch):
 
     assert r.status_code == 200, r.text
     assert r.headers["content-type"].startswith("text/event-stream")
-    assert "event: delta" in r.text
-    assert "event: done" in r.text
-    assert "أفضل عرض" in r.text
+    frames = _parse_sse_frames(r.text)
+    delta_frames = [frame for frame in frames if frame["event"] == "delta"]
+    assert [frame["event"] for frame in frames][:-1] == (
+        ["delta"] * len(delta_frames)
+    )
+    assert frames[-1]["event"] == "done"
+    assert [frame["id"] for frame in delta_frames] == [
+        f"delta-{index}" for index in range(1, len(delta_frames) + 1)
+    ]
+    assert frames[-1]["id"] == "done"
+    assert all(frame["retry"] == "3000" for frame in frames)
+    assert "".join(frame["data"]["delta"] for frame in delta_frames) == (
+        "أفضل عرض هو الخيار الظاهر في نتائج المحرك."
+    )
+    assert frames[-1]["data"]["reply"] == "أفضل عرض هو الخيار الظاهر في نتائج المحرك."
 
 
 def test_postgres_journey_store_survives_hot_cache_miss():

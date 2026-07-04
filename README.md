@@ -58,6 +58,7 @@ frontend/  ─────────  Arabic RTL Double Diamond app (:3000)
    v
 api/  ──────────────  the platform API (:8000)
    |  POST /journey/connect   consent -> profile -> matches (demo spine)
+   |  POST /journey/connect/stream
    |  POST /advisor/chat      advisor agent over the journey result
    |  POST /advisor/chat/stream
    |  POST /advisor/tools/simulate
@@ -87,6 +88,10 @@ db/   seed_offers.json (JSON-first offers repo) + schema.sql (Postgres path)
 Set `DATABASE_URL` to enable Postgres-backed journey snapshots, ordered agent
 trace events, and application status history. Without it, the API keeps the
 same in-memory hot path for local demos and CI.
+
+Streaming endpoints use Server-Sent Events. Each frame includes `id`, `retry`,
+`event`, and JSON `data`; journey event IDs match the ordered `sequence`
+stored in the trace log.
 
 ## DBR rules encoded (verify before demo)
 

@@ -184,21 +184,45 @@ def _run_connected_journey(req: ConnectRequest) -> orchestrator.JourneyResult:
     return result
 
 
+def _sse_frame(
+    event: str,
+    data: dict,
+    *,
+    event_id: str | int | None = None,
+    retry_ms: int | None = 3000,
+) -> str:
+    lines: list[str] = []
+    if event_id is not None:
+        lines.append(f"id: {event_id}")
+    if retry_ms is not None:
+        lines.append(f"retry: {retry_ms}")
+    lines.extend(
+        [
+            f"event: {event}",
+            f"data: {json.dumps(data, ensure_ascii=False, default=str)}",
+        ]
+    )
+    return "\n".join(lines) + "\n\n"
+
+
 def _sse(event: AgentEvent) -> str:
-    return (
-        f"event: {event.type.value}\n"
-        f"data: {json.dumps(event.to_dict(), ensure_ascii=False, default=str)}\n\n"
+    return _sse_frame(
+        event.type.value,
+        event.to_dict(),
+        event_id=event.sequence,
     )
 
 
-def _sse_data(event: str, data: dict) -> str:
-    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
-
-
 def _chat_chunks(reply: str, chunk_size: int = 40):
+    chunk_number = 0
     for index in range(0, len(reply), chunk_size):
-        yield _sse_data("delta", {"delta": reply[index:index + chunk_size]})
-    yield _sse_data("done", {"reply": reply})
+        chunk_number += 1
+        yield _sse_frame(
+            "delta",
+            {"delta": reply[index:index + chunk_size]},
+            event_id=f"delta-{chunk_number}",
+        )
+    yield _sse_frame("done", {"reply": reply}, event_id="done")
 
 
 @app.post("/journey/connect")
