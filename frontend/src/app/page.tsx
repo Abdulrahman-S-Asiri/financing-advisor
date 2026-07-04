@@ -73,6 +73,19 @@ type CostBreakdown = {
   apr_effective: number;
 };
 
+type DbrDecision = {
+  passes: boolean;
+  tier: string;
+  salary_linked_ratio: number;
+  non_real_estate_ratio: number;
+  total_ratio: number;
+  salary_linked_cap: number;
+  non_real_estate_cap: number | null;
+  total_cap: number | null;
+  breaches: string[];
+  policy_review: boolean;
+};
+
 type OfferMatch = {
   offer_id: string;
   institution: string;
@@ -83,6 +96,7 @@ type OfferMatch = {
   apr_effective: number | null;
   total_amount_payable: number | null;
   cost_breakdown: CostBreakdown | null;
+  dbr: DbrDecision | null;
   payment_schedule: PaymentScheduleRow[];
   reasons: string[];
   conditions: string[];
@@ -259,6 +273,10 @@ function formatPercent(value: number | null | undefined) {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(value);
+}
+
+function formatCap(value: number | null) {
+  return value === null ? "سياسة الممول" : formatPercent(value);
 }
 
 function formatNearMiss(suggestion: NearMissSuggestion) {
@@ -1585,6 +1603,45 @@ function OfferCard({
               <dd>{formatPercent(match.cost_breakdown.apr_effective)}</dd>
             </div>
           </dl>
+        </details>
+      )}
+
+      {match.dbr && (
+        <details className="dbrDetails">
+          <summary>أثر DBR</summary>
+          <dl className="dbrGrid">
+            <div>
+              <dt>الشريحة</dt>
+              <dd>{match.dbr.tier}</dd>
+            </div>
+            <div>
+              <dt>مرتبط بالراتب</dt>
+              <dd>
+                {formatPercent(match.dbr.salary_linked_ratio)} /{" "}
+                {formatCap(match.dbr.salary_linked_cap)}
+              </dd>
+            </div>
+            <div>
+              <dt>غير عقاري</dt>
+              <dd>
+                {formatPercent(match.dbr.non_real_estate_ratio)} /{" "}
+                {formatCap(match.dbr.non_real_estate_cap)}
+              </dd>
+            </div>
+            <div>
+              <dt>الإجمالي</dt>
+              <dd>
+                {formatPercent(match.dbr.total_ratio)} / {formatCap(match.dbr.total_cap)}
+              </dd>
+            </div>
+          </dl>
+          {match.dbr.breaches.length > 0 && (
+            <div className="dbrBreaches">
+              {match.dbr.breaches.map((breach) => (
+                <p key={breach}>{breach}</p>
+              ))}
+            </div>
+          )}
         </details>
       )}
 

@@ -539,6 +539,7 @@ input:focus {
 }
 
 .costDetails,
+.dbrDetails,
 .paymentSchedule {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -546,6 +547,7 @@ input:focus {
 }
 
 .costDetails summary,
+.dbrDetails summary,
 .paymentSchedule summary {
   min-height: 2.75rem;
   color: var(--ink);
@@ -554,7 +556,8 @@ input:focus {
   padding: 0.75rem 0.9rem;
 }
 
-.costDetailGrid {
+.costDetailGrid,
+.dbrGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.6rem;
@@ -563,7 +566,8 @@ input:focus {
   padding: 0.75rem;
 }
 
-.costDetailGrid div {
+.costDetailGrid div,
+.dbrGrid div {
   display: grid;
   gap: 0.25rem;
   border: 1px solid var(--line);
@@ -572,6 +576,7 @@ input:focus {
 }
 
 .costDetailGrid dt,
+.dbrGrid dt,
 .sourceRow span,
 .scheduleTableHead span {
   color: var(--muted);
@@ -579,10 +584,27 @@ input:focus {
   font-weight: 800;
 }
 
-.costDetailGrid dd {
+.costDetailGrid dd,
+.dbrGrid dd {
   margin: 0;
   font-size: 0.95rem;
   font-weight: 900;
+  line-height: 1.45;
+}
+
+.dbrBreaches {
+  display: grid;
+  gap: 0.45rem;
+  border-top: 1px solid var(--line);
+  padding: 0.75rem;
+}
+
+.dbrBreaches p {
+  margin: 0;
+  border-right: 3px solid var(--red);
+  color: var(--muted);
+  line-height: 1.6;
+  padding-right: 0.65rem;
 }
 
 .sourceRow {
@@ -1046,6 +1068,7 @@ input:focus {
   .profileFacts,
   .offerNumbers,
   .costDetailGrid,
+  .dbrGrid,
   .stageList {
     grid-template-columns: 1fr;
   }

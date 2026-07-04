@@ -11,6 +11,23 @@ from core.models import FinancialProfile, MatchResult, MatchStatus, Offer
 from core.profile import Txn, extract_profile
 
 
+def _dbr_payload(match: MatchResult) -> dict | None:
+    if match.dbr is None:
+        return None
+    return {
+        "passes": match.dbr.passes,
+        "tier": match.dbr.tier,
+        "salary_linked_ratio": match.dbr.salary_linked_ratio,
+        "non_real_estate_ratio": match.dbr.non_real_estate_ratio,
+        "total_ratio": match.dbr.total_ratio,
+        "salary_linked_cap": match.dbr.salary_linked_cap,
+        "non_real_estate_cap": match.dbr.non_real_estate_cap,
+        "total_cap": match.dbr.total_cap,
+        "breaches": match.dbr.breaches,
+        "policy_review": match.dbr.policy_review,
+    }
+
+
 def serialize_match(match: MatchResult) -> dict:
     return {
         "offer_id": match.offer.id,
@@ -26,6 +43,7 @@ def serialize_match(match: MatchResult) -> dict:
             match.cost.total_amount_payable if match.cost else None
         ),
         "cost_breakdown": match.cost.__dict__ if match.cost else None,
+        "dbr": _dbr_payload(match),
         "payment_schedule": [
             row.__dict__
             for row in (
