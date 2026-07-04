@@ -1,4 +1,4 @@
-from agents import advisor
+from agents import advisor, llm_client
 from core.models import (
     Category,
     CostBreakdown,
@@ -55,6 +55,18 @@ def _match() -> MatchResult:
     return MatchResult(offer=offer, status=MatchStatus.ELIGIBLE, cost=cost)
 
 
+def _completion(text: str, input_tokens: int = 10, output_tokens: int = 5):
+    return llm_client.LLMCompletion(
+        text=text,
+        usage=llm_client.LLMUsage(
+            provider="anthropic",
+            model="test-model",
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        ),
+    )
+
+
 def test_advisor_retries_when_reply_contains_unsupported_number(monkeypatch):
     replies = iter([
         "القسط هو 1,597.22 والرقم 999 غير مدعوم.",
@@ -62,8 +74,8 @@ def test_advisor_retries_when_reply_contains_unsupported_number(monkeypatch):
     ])
     monkeypatch.setattr(
         advisor.llm_client,
-        "complete",
-        lambda _system, _user: next(replies),
+        "complete_with_usage",
+        lambda _system, _user: _completion(next(replies)),
     )
 
     reply = advisor.chat(_profile(), [_match()], 2_000, "ما هو القسط؟")
@@ -80,10 +92,34 @@ def test_advisor_returns_fallback_when_retry_still_contains_unsupported_number(
     ])
     monkeypatch.setattr(
         advisor.llm_client,
-        "complete",
-        lambda _system, _user: next(replies),
+        "complete_with_usage",
+        lambda _system, _user: _completion(next(replies)),
     )
 
     reply = advisor.chat(_profile(), [_match()], 2_000, "ما هو القسط؟")
 
     assert "أرقام غير موجودة" in reply
+
+
+def test_advisor_trace_accumulates_usage_after_retry(monkeypatch):
+    replies = iter([
+        _completion("القسط هو 1,597.22 والرقم 999 غير مدعوم.", 20, 7),
+        _completion("القسط هو 1,597.22 حسب نتائج المحرك.", 25, 6),
+    ])
+    monkeypatch.setattr(
+        advisor.llm_client,
+        "complete_with_usage",
+        lambda _system, _user: next(replies),
+    )
+
+    result = advisor.chat_with_trace(_profile(), [_match()], 2_000, "ما هو القسط؟")
+
+    assert result.reply == "القسط هو 1,597.22 حسب نتائج المحرك."
+    assert result.guardrail_retries == 1
+    assert result.unsupported_numbers == ["999"]
+    assert result.usage["provider"] == "anthropic"
+    assert result.usage["model"] == "test-model"
+    assert result.usage["input_tokens"] == 45
+    assert result.usage["output_tokens"] == 13
+    assert result.usage["total_tokens"] == 58
+    assert result.usage["model_calls"] == 2

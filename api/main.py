@@ -276,12 +276,14 @@ def _chat_session(req: ChatRequest) -> dict:
 def _advisor_reply(req: ChatRequest) -> str:
     session = _chat_session(req)
     try:
-        return advisor.chat(
+        result = advisor.chat_with_trace(
             session["profile"], session["matches"], session["max_affordable"],
             req.message,
         )
     except llm_client.LLMNotConfigured as exc:
         raise HTTPException(503, str(exc)) from exc
+    _record_advisor_chat(session, result, req.message)
+    return result.reply
 
 
 @app.post("/advisor/chat")
@@ -316,6 +318,30 @@ def _record_advisor_tool(session: dict, tool: str, payload: dict) -> AgentEvent:
         agent=AgentName.ADVISOR,
         message_ar=messages.get(tool, "استدعاء أداة المستشار."),
         payload={"tool": tool, **payload},
+    )
+    journey_store.append_event(session, event)
+    return event
+
+
+def _record_advisor_chat(
+    session: dict,
+    result: advisor.AdvisorChatResult,
+    user_message: str,
+) -> AgentEvent:
+    event = AgentEvent(
+        journey_id=session["journey_id"],
+        sequence=len(session["events"]) + 1,
+        type=AgentEventType.TOOL_CALLED,
+        agent=AgentName.ADVISOR,
+        message_ar="استدعاء نموذج المستشار مع تسجيل استخدام الرموز.",
+        payload={
+            "tool": "advisor.chat",
+            "usage": result.usage,
+            "guardrail_retries": result.guardrail_retries,
+            "unsupported_number_count": len(result.unsupported_numbers or []),
+            "message_length": len(user_message),
+            "reply_length": len(result.reply),
+        },
     )
     journey_store.append_event(session, event)
     return event

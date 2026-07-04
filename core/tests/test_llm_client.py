@@ -82,3 +82,24 @@ def test_resolve_provider_rejects_unknown_provider(monkeypatch):
 
     with pytest.raises(llm_client.LLMNotConfigured):
         llm_client.resolve_provider()
+
+
+def test_llm_usage_payload_includes_total_tokens():
+    usage = llm_client.LLMUsage(
+        provider="deepseek",
+        model="deepseek-test",
+        input_tokens=12,
+        output_tokens=8,
+        cache_creation_input_tokens=3,
+        cache_read_input_tokens=4,
+    )
+
+    assert usage.to_dict() == {
+        "provider": "deepseek",
+        "model": "deepseek-test",
+        "input_tokens": 12,
+        "output_tokens": 8,
+        "cache_creation_input_tokens": 3,
+        "cache_read_input_tokens": 4,
+        "total_tokens": 20,
+    }

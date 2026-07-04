@@ -10,6 +10,7 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 
+from agents import llm_client
 from api import main as api_main
 from api.main import app as api_app
 from api.persistence import ApplicationStore, JourneyStore
@@ -308,8 +309,16 @@ def test_advisor_chat_fails_loud_without_key(monkeypatch):
 
 def test_advisor_chat_stream_emits_guarded_sse(monkeypatch):
     monkeypatch.setattr(
-        "agents.advisor.llm_client.complete",
-        lambda _system, _user: "أفضل عرض هو الخيار الظاهر في نتائج المحرك.",
+        "agents.advisor.llm_client.complete_with_usage",
+        lambda _system, _user: llm_client.LLMCompletion(
+            text="أفضل عرض هو الخيار الظاهر في نتائج المحرك.",
+            usage=llm_client.LLMUsage(
+                provider="deepseek",
+                model="deepseek-test",
+                input_tokens=100,
+                output_tokens=12,
+            ),
+        ),
     )
     c = _client()
     c.post("/journey/connect", json={
@@ -340,6 +349,17 @@ def test_advisor_chat_stream_emits_guarded_sse(monkeypatch):
         "أفضل عرض هو الخيار الظاهر في نتائج المحرك."
     )
     assert frames[-1]["data"]["reply"] == "أفضل عرض هو الخيار الظاهر في نتائج المحرك."
+
+    session = api_main.journey_store.get_by_persona("sara_strong")
+    advisor_event = session["events"][-1]
+    assert advisor_event.agent.value == "advisor"
+    assert advisor_event.payload["tool"] == "advisor.chat"
+    assert advisor_event.payload["usage"]["provider"] == "deepseek"
+    assert advisor_event.payload["usage"]["model"] == "deepseek-test"
+    assert advisor_event.payload["usage"]["input_tokens"] == 100
+    assert advisor_event.payload["usage"]["output_tokens"] == 12
+    assert advisor_event.payload["usage"]["total_tokens"] == 112
+    assert advisor_event.payload["guardrail_retries"] == 0
 
 
 def test_postgres_journey_store_survives_hot_cache_miss():

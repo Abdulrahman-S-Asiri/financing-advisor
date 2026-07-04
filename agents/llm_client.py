@@ -29,6 +29,37 @@ class ProviderConfig:
     base_url: str = ""
 
 
+@dataclass(frozen=True)
+class LLMUsage:
+    provider: str
+    model: str
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_creation_input_tokens: int = 0
+    cache_read_input_tokens: int = 0
+
+    @property
+    def total_tokens(self) -> int:
+        return self.input_tokens + self.output_tokens
+
+    def to_dict(self) -> dict:
+        return {
+            "provider": self.provider,
+            "model": self.model,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "cache_creation_input_tokens": self.cache_creation_input_tokens,
+            "cache_read_input_tokens": self.cache_read_input_tokens,
+            "total_tokens": self.total_tokens,
+        }
+
+
+@dataclass(frozen=True)
+class LLMCompletion:
+    text: str
+    usage: LLMUsage
+
+
 DEEPSEEK_DEFAULT_BASE_URL = "https://api.deepseek.com/anthropic"
 ANTHROPIC_DEFAULT_MODEL = "claude-sonnet-4-6"
 DEEPSEEK_DEFAULT_MODEL = "deepseek-v4-pro"
@@ -120,7 +151,27 @@ def resolve_provider() -> ProviderConfig:
     )
 
 
-def complete(system: str, user: str, max_tokens: int = 1000) -> str:
+def _usage_from_message(provider: ProviderConfig, msg) -> LLMUsage:
+    usage = getattr(msg, "usage", None)
+    return LLMUsage(
+        provider=provider.provider,
+        model=provider.model,
+        input_tokens=int(getattr(usage, "input_tokens", 0) or 0),
+        output_tokens=int(getattr(usage, "output_tokens", 0) or 0),
+        cache_creation_input_tokens=int(
+            getattr(usage, "cache_creation_input_tokens", 0) or 0
+        ),
+        cache_read_input_tokens=int(
+            getattr(usage, "cache_read_input_tokens", 0) or 0
+        ),
+    )
+
+
+def complete_with_usage(
+    system: str,
+    user: str,
+    max_tokens: int = 1000,
+) -> LLMCompletion:
     provider = resolve_provider()
     try:
         import anthropic  # lazy: keeps the deterministic path dependency-free
@@ -157,4 +208,9 @@ def complete(system: str, user: str, max_tokens: int = 1000) -> str:
             f"{provider.provider} returned HTTP {exc.status_code}. Check provider configuration."
         ) from exc
 
-    return "".join(block.text for block in msg.content if block.type == "text")
+    text = "".join(block.text for block in msg.content if block.type == "text")
+    return LLMCompletion(text=text, usage=_usage_from_message(provider, msg))
+
+
+def complete(system: str, user: str, max_tokens: int = 1000) -> str:
+    return complete_with_usage(system, user, max_tokens=max_tokens).text
