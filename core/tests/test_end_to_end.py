@@ -111,6 +111,23 @@ def test_unknown_persona_404():
     assert r.status_code == 404
 
 
+def test_offers_verification_report_flags_placeholder_seed_data():
+    c = _client()
+    r = c.get("/offers/verification")
+    assert r.status_code == 200, r.text
+    body = r.json()
+
+    assert body["total_offers"] == 8
+    assert body["verified_count"] == 0
+    assert body["unverified_count"] == 8
+    assert body["missing_source_count"] == 0
+    assert body["ready_for_public_demo"] is False
+    assert "target_offer_count" in {issue["code"] for issue in body["issues"]}
+    assert sum(
+        issue["code"] == "placeholder_rate" for issue in body["issues"]
+    ) == 8
+
+
 def test_application_simulation_lifecycle():
     c = _client()
     journey = c.post("/journey/connect", json={

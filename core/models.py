@@ -65,6 +65,7 @@ class Offer:
     max_age_at_maturity: int
     rate_verified: bool = False
     source_url: str = ""
+    retrieved_at: str = ""
     notes: str = ""
 
 

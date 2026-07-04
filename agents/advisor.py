@@ -70,6 +70,8 @@ def build_context(profile: FinancialProfile, matches: list[MatchResult],
                 ],
                 "dbr": asdict(m.dbr) if m.dbr else None,
                 "rate_verified": m.offer.rate_verified,
+                "source_url": m.offer.source_url,
+                "retrieved_at": m.offer.retrieved_at,
                 "near_miss_suggestions": [
                     asdict(suggestion) for suggestion in m.near_miss_suggestions
                 ],

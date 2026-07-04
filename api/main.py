@@ -36,6 +36,7 @@ from agents import (
 from agents.events import AgentEvent, AgentEventType, AgentName
 from api.persistence import ApplicationStore, JourneyStore
 from core.models import Category, Offer, Structure
+from core.offer_verification import verify_offers
 from core.profile import Txn
 
 MOCK_OB_BASE_URL = os.environ.get("MOCK_OB_BASE_URL", "http://127.0.0.1:8100")
@@ -101,6 +102,11 @@ def _ob_client() -> httpx.Client:
 @app.get("/offers")
 def list_offers():
     return {"count": len(repo.offers), "offers": [o.__dict__ for o in repo.offers]}
+
+
+@app.get("/offers/verification")
+def offers_verification():
+    return verify_offers(repo.offers).to_dict()
 
 
 def _open_banking_transactions(req: ConnectRequest) -> tuple[str, list[dict]]:

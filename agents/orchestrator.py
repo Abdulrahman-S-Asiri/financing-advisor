@@ -40,6 +40,8 @@ def serialize_match(match: MatchResult) -> dict:
         "reasons": match.reasons,
         "conditions": match.conditions,
         "rate_verified": match.offer.rate_verified,
+        "source_url": match.offer.source_url,
+        "retrieved_at": match.offer.retrieved_at,
         "near_miss_suggestions": [
             {
                 "kind": suggestion.kind,

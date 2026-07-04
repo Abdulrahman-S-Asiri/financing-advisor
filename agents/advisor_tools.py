@@ -41,6 +41,7 @@ def _offer_payload(offer: Offer) -> dict:
         "max_age_at_maturity": offer.max_age_at_maturity,
         "rate_verified": offer.rate_verified,
         "source_url": offer.source_url,
+        "retrieved_at": offer.retrieved_at,
         "notes": offer.notes,
     }
 

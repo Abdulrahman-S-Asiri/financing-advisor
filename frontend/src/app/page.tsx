@@ -75,6 +75,8 @@ type OfferMatch = {
   reasons: string[];
   conditions: string[];
   rate_verified: boolean;
+  source_url: string;
+  retrieved_at: string;
   near_miss_suggestions: NearMissSuggestion[];
 };
 
