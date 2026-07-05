@@ -10,6 +10,10 @@ POST /advisor/chat
   advisor agent over the last journey result for that persona (in-memory
   session; a table in db/schema.sql is the persistence path if needed).
 
+POST /auth/otp/start + POST /auth/otp/verify
+  interim simulated phone OTP flow for local product wiring. Production auth
+  remains Nafath or an approved identity provider.
+
 Offers load from db/seed_offers.json through OffersRepo. Why JSON-first:
 a 72-hour build should not spend day 1 on database plumbing; the repo
 interface lets you swap in Postgres (schema provided) without touching
@@ -21,7 +25,6 @@ import json
 import os
 from pathlib import Path
 
-import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import Response, StreamingResponse
@@ -35,8 +38,11 @@ from agents import (
     orchestrator,
 )
 from agents.events import AgentEvent, AgentEventType, AgentName
+from api.analytics import build_outcome_analytics
+from api.auth import OtpAuthStore
+from api.open_banking import OpenBankingGateway, OpenBankingProviderError
 from api.persistence import ApplicationStore, JourneyStore
-from core.models import Category, Offer, Structure
+from core.offers_catalog import parse_offers_catalog
 from core.offer_verification import (
     build_review_checklist,
     review_checklist_csv,
@@ -52,22 +58,33 @@ app = FastAPI(title="Financing Advisor API", version="0.1.0")
 app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=6)
 
 
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, str(default)))
+    except ValueError:
+        return default
+
+
 class OffersRepo:
     """JSON-backed for the hackathon; implement a Postgres variant against
-    db/schema.sql if persistence becomes worth the time."""
+    db/schema.sql if persistence becomes worth the time.
+
+    The catalog is validated at load time (core.offers_catalog): a malformed
+    hand-edited file fails startup listing every problem, instead of surfacing
+    as a TypeError mid-request."""
 
     def __init__(self, path: Path):
         raw = json.loads(path.read_text(encoding="utf-8"))
-        self.offers = [
-            Offer(**{**o, "category": Category(o["category"]),
-                     "structure": Structure(o["structure"])})
-            for o in raw["offers"]
-        ]
+        self.offers = parse_offers_catalog(raw)
 
 
 repo = OffersRepo(OFFERS_PATH)
 journey_store = JourneyStore(repo.offers, DATABASE_URL or None)
 application_store = ApplicationStore(DATABASE_URL or None)
+auth_store = OtpAuthStore(
+    challenge_ttl_minutes=_env_int("AUTH_OTP_TTL_MINUTES", 5),
+    session_ttl_hours=_env_int("AUTH_SESSION_TTL_HOURS", 24),
+)
 
 
 class ConnectRequest(BaseModel):
@@ -96,32 +113,71 @@ class ApplicationDraftRequest(BaseModel):
     offer_id: str
 
 
-def _ob_client() -> httpx.Client:
-    # Tests inject a factory returning TestClient(mock_ob_app) so the whole
-    # pipeline runs in-process with zero network (see test_end_to_end.py).
-    factory = getattr(app.state, "ob_client_factory", None)
-    if factory is not None:
-        return factory()
-    return httpx.Client(base_url=MOCK_OB_BASE_URL, timeout=10)
+class OtpStartRequest(BaseModel):
+    phone_number: str = Field(examples=["+966501234567"])
 
 
-def _field(raw: dict, *keys: str):
-    for key in keys:
-        value = raw.get(key)
-        if value not in (None, ""):
-            return value
-    raise KeyError(f"Missing required field. Expected one of: {', '.join(keys)}")
+class OtpVerifyRequest(BaseModel):
+    challenge_id: str
+    otp: str = Field(min_length=4, max_length=8)
 
 
-def _account_id(account: dict) -> str:
-    return str(_field(account, "AccountId", "accountId"))
+@app.post("/auth/otp/start")
+def auth_otp_start(req: OtpStartRequest):
+    try:
+        return auth_store.start(req.phone_number)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
-def _servicer_name(account: dict) -> str:
-    servicer = _field(account, "Servicer", "servicer")
-    if isinstance(servicer, dict):
-        return str(_field(servicer, "Name", "name"))
-    return str(servicer)
+@app.post("/auth/otp/verify")
+def auth_otp_verify(req: OtpVerifyRequest):
+    try:
+        return auth_store.verify(req.challenge_id, req.otp)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/auth/session/{session_token}")
+def auth_session(session_token: str):
+    session = auth_store.get_session(session_token)
+    if not session:
+        raise HTTPException(404, "Unknown or expired auth session.")
+    return session.to_public_dict()
+
+
+@app.get("/healthz")
+def healthz():
+    """Liveness and config summary for the status page and deploy probes.
+
+    Booleans and counts only — never configuration values. No upstream calls
+    (mock-OB reachability has its own endpoint below)."""
+    try:
+        llm_client.resolve_provider()
+        llm_configured = True
+    except llm_client.LLMNotConfigured:
+        llm_configured = False
+    return {
+        "status": "ok",
+        "version": app.version,
+        "offers_loaded": len(repo.offers),
+        # Startup fails on an invalid catalog, so a reachable API implies a
+        # valid one; the key documents that invariant for the status page.
+        "catalog_valid": True,
+        "postgres_enabled": journey_store.postgres_enabled,
+        "llm_configured": llm_configured,
+        "open_banking_provider": os.environ.get("OPEN_BANKING_PROVIDER", "mock"),
+    }
+
+
+@app.get("/integrations/open-banking/status")
+def open_banking_status():
+    return {
+        "provider": os.environ.get("OPEN_BANKING_PROVIDER", "mock"),
+        "base_url": MOCK_OB_BASE_URL,
+        "mock_mode": os.environ.get("OPEN_BANKING_PROVIDER", "mock") == "mock",
+        "adapter": "api.open_banking.OpenBankingGateway",
+    }
 
 
 @app.get("/offers")
@@ -152,35 +208,24 @@ def offers_review_checklist_csv():
 
 
 def _open_banking_transactions(req: ConnectRequest) -> tuple[str, list[dict]]:
+    factory = getattr(app.state, "ob_client_factory", None)
+    gateway = OpenBankingGateway(
+        base_url=MOCK_OB_BASE_URL,
+        client_factory=factory,
+    )
     try:
-        with _ob_client() as client:
-            consent = client.post("/consents", json={"persona_id": req.persona_id})
-            if consent.status_code == 404:
-                raise HTTPException(404, f"Unknown persona '{req.persona_id}'")
-            consent.raise_for_status()
-            consent_id = consent.json()["Data"]["ConsentId"]
-            client.post(f"/consents/{consent_id}/authorize").raise_for_status()
-
-            accounts = client.get("/accounts", params={"consent_id": consent_id})
-            accounts.raise_for_status()
-            account = accounts.json()["Data"]["Account"][0]
-
-            txns_resp = client.get(
-                f"/accounts/{_account_id(account)}/transactions",
-                params={"consent_id": consent_id},
+        return gateway.fetch_transactions(req.persona_id)
+    except OpenBankingProviderError as exc:
+        detail = exc.message
+        if exc.status_code == 503:
+            detail = (
+                f"{detail} Start it: "
+                "uvicorn mock_open_banking.main:app --port 8100"
             )
-            txns_resp.raise_for_status()
-            raw_txns = txns_resp.json()["Data"]["Transaction"]
-            bank = _servicer_name(account)
-    except httpx.ConnectError as exc:
         raise HTTPException(
-            503,
-            f"Mock Open Banking service unreachable at {MOCK_OB_BASE_URL}. "
-            f"Start it: uvicorn mock_open_banking.main:app --port 8100",
+            exc.status_code,
+            detail,
         ) from exc
-    except (KeyError, TypeError, ValueError) as exc:
-        raise HTTPException(502, f"Invalid Open Banking account payload: {exc}") from exc
-    return bank, raw_txns
 
 
 def _store_journey(
@@ -248,7 +293,7 @@ def _journey_sse_events(result: orchestrator.JourneyResult):
         yield _sse(event, data)
 
 
-def _chat_chunks(reply: str, chunk_size: int = 40):
+def _chat_chunks(reply: str, chunk_size: int = 40, *, guardrail_fallback: bool = False):
     chunk_number = 0
     for index in range(0, len(reply), chunk_size):
         chunk_number += 1
@@ -257,7 +302,11 @@ def _chat_chunks(reply: str, chunk_size: int = 40):
             {"delta": reply[index:index + chunk_size]},
             event_id=f"delta-{chunk_number}",
         )
-    yield _sse_frame("done", {"reply": reply}, event_id="done")
+    yield _sse_frame(
+        "done",
+        {"reply": reply, "guardrail_fallback": guardrail_fallback},
+        event_id="done",
+    )
 
 
 @app.post("/journey/connect")
@@ -284,7 +333,7 @@ def _chat_session(req: ChatRequest) -> dict:
     return session
 
 
-def _advisor_reply(req: ChatRequest) -> str:
+def _advisor_reply(req: ChatRequest) -> advisor.AdvisorChatResult:
     session = _chat_session(req)
     try:
         result = advisor.chat_with_trace(
@@ -294,19 +343,34 @@ def _advisor_reply(req: ChatRequest) -> str:
     except llm_client.LLMNotConfigured as exc:
         raise HTTPException(503, str(exc)) from exc
     _record_advisor_chat(session, result, req.message)
-    return result.reply
+    return result
 
 
 @app.post("/advisor/chat")
 def advisor_chat(req: ChatRequest):
-    reply = _advisor_reply(req)
-    return {"reply": reply}
+    result = _advisor_reply(req)
+    return {
+        "reply": result.reply,
+        "guardrail_fallback": result.guardrail_fallback,
+        "guardrail_retries": result.guardrail_retries,
+    }
 
 
 @app.post("/advisor/chat/stream")
 def advisor_chat_stream(req: ChatRequest):
-    reply = _advisor_reply(req)
-    return StreamingResponse(_chat_chunks(reply), media_type="text/event-stream")
+    result = _advisor_reply(req)
+    return StreamingResponse(
+        _chat_chunks(result.reply, guardrail_fallback=result.guardrail_fallback),
+        media_type="text/event-stream",
+    )
+
+
+@app.get("/analytics/overview")
+def analytics_overview():
+    return build_outcome_analytics(
+        journey_store.all_sessions(),
+        application_store.all_applications(),
+    )
 
 
 def _journey_session(journey_id: str) -> dict:
@@ -349,6 +413,7 @@ def _record_advisor_chat(
             "tool": "advisor.chat",
             "usage": result.usage,
             "guardrail_retries": result.guardrail_retries,
+            "guardrail_fallback": result.guardrail_fallback,
             "unsupported_number_count": len(result.unsupported_numbers or []),
             "message_length": len(user_message),
             "reply_length": len(result.reply),

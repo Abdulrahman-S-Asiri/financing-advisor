@@ -1,293 +1,286 @@
-# Financing Advisor — Full Product Plan
+# Financing Advisor — Execution Plan
 
-**From hackathon scaffold to the financing intelligence layer for Saudi Arabia.**
+This is the working execution plan for the project. It is written so that any
+future engineering session can continue the work without other context: what
+the product is, what exists, how it is verified, and what comes next.
 
-> The one-line pitch: not a comparison table — an agentic advisor that does the
-> work for you, step by step. It reads your real financial life, matches you
-> against every offer in the market, prices them honestly, explains every
-> decision in Arabic, and (eventually) applies on your behalf.
-
-**Engineering principle (non-negotiable, repeated everywhere):**
-*The model explains; the code calculates.* Every number comes from
-deterministic, unit-tested functions. The LLM never invents a profit rate,
-a ratio, or an eligibility decision.
+**The one non-negotiable engineering rule, repeated everywhere:**
+*The model explains; the code calculates.* Every number — riyal, ratio, APR,
+eligibility decision — comes from deterministic, unit-tested functions in
+`core/`. The LLM never invents a profit rate, a ratio, or a decision, and a
+number-fidelity guardrail enforces this on every advisor reply.
 
 ---
 
-## 1. Where the project stands today (confirmed)
+## 1. Product vision
 
-| Layer | State |
-|---|---|
-| `core/` engine | Done and tested — profile extraction, SAMA DBR tiers, flat-rate → APR cost engine, explainable eligibility + ranking |
-| `mock_open_banking/` | Done — AIS-shaped service, 3 seeded personas |
-| `agents/` | **Only 1 of 5 agents exists** (Advisor chat). Others are comments, not code |
-| `api/` | One demo endpoint (`/journey/connect`) + chat. In-memory sessions, no auth |
-| `frontend/` | Single-page Arabic RTL Double Diamond flow, functional but demo-grade. Plain CSS, no component library yet |
-| Offers data | Placeholder rates (`rate_verified: false`) |
+The financing intelligence layer for Saudi Arabia — not a comparison table.
+An agentic advisor that reads the customer's real financial life through Open
+Banking, matches it against every offer in the market, prices offers honestly
+(flat rate → effective APR), explains every decision in Arabic — including
+rejections and the minimal change that would flip them — and eventually
+applies on the customer's behalf. Explainability and honesty are the brand;
+the consented outcome data is the long-term moat.
 
-**Assumed (verify before building):** SAMA DBR ratios against current Arabic
-rulebook text; admin-fee cap; official SAMA AIS field names.
+## 2. Final full-website scope
 
----
+A complete consumer-facing website (Arabic-first, RTL), currently demo-grade:
 
-## 2. The Agent Layer (Phase 1 — the core of the product)
+- Public landing page with an honest value proposition and demo framing.
+- The four-stage journey (consent → analysis → offers → decision) as the app.
+- Offer detail views with full cost breakdown and payment schedule.
+- A "how it works" page stating exactly what is computed vs narrated and the
+  demo's limits.
+- An internal status page: service health, offer-verification coverage,
+  config booleans (never values), session activity, demo shortcuts.
+- Error and not-found pages; shared navigation and footer with a permanent
+  demo disclaimer.
 
-Five named agents, matching the concept deck. Each agent is a thin LLM
-orchestration wrapper around deterministic tools. Agents emit **structured
-events** (`agent_started`, `tool_called`, `finding`, `agent_completed`) so the
-UI can show them working live — this visibility *is* the product experience.
+## 3. Architecture
 
-### 2.1 وكيل الملف المالي — Financial Profile Agent
+```
+frontend/  Next.js App Router (:3000), plain-CSS design tokens, IBM Plex Sans Arabic
+   |   /            landing (static)
+   |   /journey     the journey app (client component, ?persona= preselect)
+   |   /journeys/[journeyId]/offers/[offerId]   offer detail
+   |   /docs        honest architecture + limitations
+   |   /status      internal status dashboard
+   |   API access via Next rewrite proxy: /backend/* -> http://127.0.0.1:8000
+   v
+api/       FastAPI platform API (:8000) — see §6
+   ├──> mock_open_banking/ (:8100)  AIS-shaped seeded service behind
+   |        api/open_banking.OpenBankingGateway (licensed-TPP swap = base URL)
+   ├──> core/    deterministic engine: profile, dbr, cost, eligibility,
+   |             offer_verification, offers_catalog (validation gate)
+   └──> agents/  orchestrator (Arabic events), advisor (guardrailed LLM),
+                 application (simulated state machine), llm_client
+db/        seed_offers.json (validated at load) + schema.sql (Postgres path)
+mcp_server/ local MCP dev tooling (read-only; not part of the app runtime)
+```
 
-Analyzes account transactions: income, salary stability, obligations, DBR.
+Dependencies point downward only (`api → agents → core`); `core/` is pure
+stdlib with no I/O — callers read files and pass parsed payloads in.
 
-- **Deterministic base (exists):** `core/profile.extract_profile` — salary
-  detection, obligations, income haircut.
-- **New LLM capability:** the transaction **categorizer hook** already
-  designed into `core/profile.py`. Ambiguous descriptions (unlabeled
-  recurring debits, unusual credits) go to the LLM which returns a
-  *category only* — never an amount, never a decision.
-- **New deterministic capability:** salary-stability score (variance across
-  observed months), obligation trend (rising/falling), months-observed
-  confidence level.
-- **Output:** `FinancialProfile` + `profile_narrative` (Arabic summary of
-  what was found and how confident the detection is).
+## 4. User journeys
 
-### 2.2 وكيل المطابقة — Matching Agent
+1. **Visitor → demo user:** landing → CTA or persona card →
+   `/journey?persona=<id>` (form pre-seeded) → consent → live agent events →
+   financial dashboard → ranked offers with reasons → simulator → advisor
+   chat → simulated application with status timeline.
+2. **Skeptical reviewer (judge/regulator):** landing trust section → `/docs`
+   (who computes, who narrates, limitations) → offer detail eligibility trace
+   → `/status` for the honest verification coverage.
+3. **Operator/developer:** `/status` for health, catalog coverage, and config
+   booleans; `/healthz` for probes; MCP tools for engine-level inspection.
 
-Runs the profile against every offer's eligibility conditions: DBR caps,
-salary transfer, minimum salary, tenor, age, nationality.
+## 5. Frontend pages
 
-- **Deterministic base (exists):** `core/eligibility.match_offer` +
-  `rank_matches`.
-- **Agent's job:** orchestrate the per-offer tool calls, group outcomes
-  (eligible / conditional / policy-review / ineligible), and produce the
-  **near-miss analysis**: for each rejection, compute the minimal change
-  that flips it (lower amount, shorter tenor, salary transfer) by
-  re-calling the engine with adjusted inputs — deterministic search, LLM
-  narrates the result.
-- **Output:** ranked matches + per-offer eligibility trace + near-miss
-  suggestions ("this offer becomes available at SAR 65,000 instead of 80,000").
-
-### 2.3 وكيل التكلفة — Cost Agent
-
-Computes the true total cost of every offer with an APR equivalent — so
-murabaha and tawarruq become comparable numbers.
-
-- **Deterministic base (exists):** `core/cost.price_offer` (flat → installment,
-  admin fee, IRR-based APR).
-- **New deterministic capabilities:**
-  - Full payment schedule per offer (month-by-month table).
-  - Early-settlement estimate (per SAMA early-settlement rules — verify).
-  - Pairwise savings: "cheapest offer saves you SAR X vs. the next one over
-    the full tenor."
-- **Output:** cost breakdowns + savings deltas, all engine-computed; agent
-  narrates the comparison in Arabic.
-
-### 2.4 وكيل المستشار — Advisor Agent (exists — extend)
-
-Explains the ranking in Arabic and answers: "Why didn't offer X match me?"
-and "What changes if I transfer my salary?"
-
-- **Exists:** context-grounded chat with the hard no-invented-numbers rule.
-- **Extend:**
-  - **Tool use instead of context stuffing:** give the advisor tools —
-    `simulate(amount, tenor, salary_transfer)` re-runs the engine;
-    `get_offer_detail(id)`, `get_payment_schedule(id)`. What-if answers
-    become engine-computed, not narrated guesses.
-  - **Streaming responses** for the chat UI.
-  - **Suggested questions** generated from the actual journey result (a
-    rejected user sees "what can I change to qualify?").
-
-### 2.5 وكيل التقديم — Application Agent (mocked now, real later)
-
-Submits the financing application on your behalf and tracks its status.
-
-- **Now (mock):** a deterministic state machine —
-  `draft → submitted → under_review → approved/declined` — with realistic
-  seeded timing, persisted per session. Agent prepares an "application
-  summary" from the profile + chosen offer and walks the user through
-  confirmation. **Clearly labeled simulation in the UI.**
-- **Later (real):** integration with lender onboarding APIs / lead-gen
-  agreements. This is a business-development milestone as much as a
-  technical one.
-
-### 2.6 The Orchestrator (new — ties the five together)
-
-- A journey orchestrator that runs Profile → Matching → Cost as a pipeline,
-  streams agent events to the frontend (SSE on FastAPI), and hands the
-  assembled context to the Advisor and Application agents on demand.
-- Keep it in-house and small (the existing `llm_client.py` pattern +
-  Anthropic tool-use loop). No heavyweight agent framework — the
-  deterministic engine is the framework.
-
-### 2.7 Agent guardrails (important — judges and regulators will probe this)
-
-- **Number-fidelity checker:** post-process every advisor reply — extract all
-  numerals, assert each appears in the engine context. Violations are
-  logged and the reply is regenerated. This turns the pitch line into an
-  enforced invariant.
-- **Agent trace log:** every tool call and its inputs/outputs persisted per
-  journey — the audit trail a licensed platform would need anyway.
-
----
-
-## 3. Platform hardening (Phase 2)
-
-What must change under the hood to carry the product beyond the demo:
-
-1. **Persistence:** move sessions + journeys + traces from in-memory dicts to
-   Postgres (`db/schema.sql` already sketches the path). Local: docker-compose
-   (exists). Hosted: Neon or Supabase free tier — SAR 0/month to start.
-2. **Offers data pipeline:** an offers repo with `rate_verified`, `source_url`,
-   `retrieved_at` as first-class citizens; a review checklist for updating
-   published rates; target 15–25 verified offers across personal / auto /
-   real-estate. Unverified rates stay visibly flagged end-to-end.
-3. **AIS spec alignment:** adapt `Txn.from_ais` + mock service to the official
-   SAMA Open Banking AIS field names (single-adapter change by design).
-4. **Auth (real product):** Nafath is the Saudi-native identity path;
-   phone-OTP as interim. Not needed for demo.
-5. **Config & environments:** `.env`-driven everything (already the pattern);
-   split dev/prod settings; never commit secrets.
-6. **Testing:** keep `core/` at high coverage; add API contract tests for the
-   streaming events; add the number-fidelity guardrail test with recorded LLM
-   fixtures (no live key needed in CI).
-
----
-
-## 4. The Flagship Consumer Interface (Phase 3 — "massive UI")
-
-One consumer app, Arabic-first RTL, English secondary. The design goal:
-**a national-champion fintech look** — closer to a premium banking app than a
-hackathon dashboard. Next.js App Router (existing); component library built
-in-house, adopting Tailwind for tokens/utility styling (new dependency —
-the current frontend is plain CSS). No template kits — avoids the generic look.
-
-### 4.1 Design system first
-
-- **Typography:** IBM Plex Sans Arabic (free, excellent Arabic+Latin pairing).
-- **Design tokens:** color scale (deep navy + warm sand + signal colors for
-  eligible/conditional/rejected), spacing scale, radius scale, elevation.
-- **Dark mode** from day one (tokens make it cheap).
-- **Motion language:** agents "working" deserve purposeful motion — progress
-  choreography, streaming text, count-up numbers. Subtle, not gimmicky.
-- **RTL as the default**, LTR as the mirror — not the other way around.
-- **Number formatting:** SAR everywhere via `Intl.NumberFormat("ar-SA")`
-  (already started in the current page).
-
-### 4.2 Screens
-
-1. **Journey start / consent** — bank selection, consent simulation framed
-   exactly like a real Open Banking consent screen (scopes, duration,
-   revocability). Trust is the theme.
-2. **Agents-at-work (the signature screen)** — a live timeline: each of the
-   three pipeline agents lights up, shows its tool calls and findings as
-   streamed events, hands off to the next. This is the demo moment and the
-   brand moment; nobody in the market shows their work like this.
-3. **Financial health dashboard** — detected salary + confidence, obligations
-   breakdown, DBR gauges against the user's SAMA tier caps, affordable-
-   installment headroom, detection notes surfaced honestly.
-4. **Offers marketplace** — ranked cards with status badges (مؤهل / مشروط /
-   مراجعة سياسة / غير مؤهل), structure badges (تورق / مرابحة / إجارة), APR and
-   total-payable front and center, filters + sort, side-by-side compare (up
-   to 3), the near-miss hints on rejected cards.
-5. **Offer detail** — full cost breakdown, month-by-month payment schedule,
-   the complete eligibility trace ("passed 6 of 7 checks — here's the one
-   that failed"), rate-verification badge with source link.
-6. **What-if simulator** — sliders for amount / tenor, toggle for salary
-   transfer; every movement re-runs the real engine and animates the offer
-   grid re-ranking. The advisor can be summoned in context.
-7. **Advisor chat** — streaming, contextual, with generated suggested
-   questions; renders engine numbers as tappable chips that deep-link to the
-   relevant offer or dashboard element.
-8. **Application flow + tracker** — choose offer → agent-prepared summary →
-   confirm → status timeline (simulated, labeled as such).
-9. **Empty / error / loading states** for every screen — a giant-company UI
-   is defined by its edges, not its happy path.
-
-### 4.3 Frontend architecture
-
-- Restructure from single `page.tsx` to App Router routes per screen with a
-  shared journey store (React context or Zustand — decide at build time,
-  bias to the simplest that works).
-- SSE client for agent events; optimistic UI for simulator interactions.
-- Responsive: phone-first (this is a consumer product in a mobile-first
-  market), desktop as the enhanced layout.
-
----
-
-## 5. Trust, compliance, and the moat (Phase 4 + ongoing)
-
-These are what make it a company rather than a demo:
-
-- **Regulatory reality (flag early):** operating a real financing
-  aggregation/brokerage platform in KSA requires SAMA authorization (finance
-  broker / open-banking TPP licensing as applicable). Open Banking data
-  access in production goes through a licensed TPP. Build the demo freely;
-  budget the licensing conversation into any go-to-market step.
-- **PDPL (Saudi data protection):** transaction data is highly sensitive.
-  Data-minimization by design: the LLM sees categories and engine outputs,
-  not raw statements, wherever possible; document what crosses the API
-  boundary to the model provider.
-- **Explainability as the brand:** the eligibility trace, the rejection
-  reasons, the near-miss suggestions, the rate-verification badges — this
-  transparency is the differentiator against every aggregator that just
-  shows a sorted table.
-- **The data moat (long-term):** anonymized, consented journey outcomes →
-  the best dataset in the market on what real applicants qualify for.
-  Roadmap: approval-likelihood modeling, offer-gap analytics for lenders.
-
-### Explicit non-goals (for now)
-
-- No SME module, no credit cards, no BNPL origination.
-- No investment or trading features (separate CMA licensing world — keep out).
-- No bank-partner portal or admin back-office (revisit after the consumer
-  app is flagship-grade).
-
----
-
-## 6. Build phases and order
-
-| Phase | Scope | Exit criteria |
+| Route | Type | Content / notes |
 |---|---|---|
-| **1 — Agent layer** | Orchestrator + 5 agents + SSE events + guardrails | Full pipeline streams events; near-miss analysis works; number-fidelity check enforced; tests green |
-| **2 — Platform hardening** | Postgres persistence, offers pipeline, AIS alignment, contract tests | Journeys survive restart; 15+ verified offers; CI runs without an API key |
-| **3 — Flagship UI** | Design system + all 9 screens, phone-first RTL | Full journey (consent → agents-at-work → dashboard → offers → simulator → chat → application) polished on mobile and desktop |
-| **4 — Real-world edges** | Nafath/OTP auth, TPP integration groundwork, licensing prep | Production architecture documented; auth working; TPP swap validated against the adapter seam |
-| **5 — Moat** | Outcome analytics, approval-likelihood modeling, lender-side insights | First data products specified |
+| `/` | static | Hero + honesty strip, 4-step how-it-works, 3 trust cards, persona cards → journey, CTA band |
+| `/journey` | client | The full Double Diamond app (`features/journey/JourneyApp.tsx`); `?persona=` seeds the form |
+| `/journeys/[jid]/offers/[oid]` | client | Cost breakdown, DBR trace, month-by-month schedule, source link |
+| `/docs` | static | Idea, engine-vs-narrator, data path, demo limitations, verification meaning |
+| `/status` | client | healthz + offers/verification + OB status + analytics cards; persona shortcuts; refresh; server-down guidance |
+| `error.tsx` / `not-found.tsx` | — | Arabic fallbacks with recovery links |
 
-Phases 1 → 3 are sequenced so that **each phase is independently demoable**.
-(If a hackathon-shaped deadline appears, Phase 1 + a vertical slice of
-Phase 3's screens 2, 4, and 7 is the winning cut.)
+Site shell: `src/components/site/` (SiteNav with mobile menu + demo pill,
+SiteFooter with disclaimer). New CSS lives in one delimited block at the end
+of `globals.css` (`siteNav*`, `landing*`, `docs*`, `status*` prefixes) using
+the existing tokens. Journey internals were intentionally not restructured —
+journey state is component-local and resets on navigation (see §16).
+
+## 6. Backend APIs
+
+All errors are `HTTPException` with string `detail`. No auth is enforced (demo
+scope, by design — production auth is Nafath, see §14).
+
+| Area | Endpoints |
+|---|---|
+| Health | `GET /healthz` — status, version, offers_loaded, catalog_valid, postgres_enabled, llm_configured, open_banking_provider (booleans/counts only) |
+| Journey | `POST /journey/connect`, `POST /journey/connect/stream` (SSE agent events, final frame carries the journey payload) |
+| Advisor | `POST /advisor/chat` (`reply`, `guardrail_fallback`, `guardrail_retries`), `POST /advisor/chat/stream` (deltas + `done` frame with the flag) |
+| Advisor tools | `POST /advisor/tools/simulate`, `GET /advisor/tools/{jid}/offers/{oid}`, `GET .../payment-schedule` |
+| Offers | `GET /offers`, `GET /offers/verification`, `GET /offers/review-checklist(.csv)` |
+| Applications | `POST /applications/draft`, `GET /applications/{id}`, `POST /applications/{id}/submit`, `POST /applications/{id}/advance` |
+| Auth (simulated) | `POST /auth/otp/start`, `POST /auth/otp/verify`, `GET /auth/session/{token}` |
+| Analytics | `GET /analytics/overview` (aggregate-only, recent in-memory sessions) |
+| Integrations | `GET /integrations/open-banking/status` |
+
+## 7. Agentic AI flow
+
+Five agents (profile, matching, cost, advisor, application) — thin
+orchestration over deterministic tools, emitting ordered Arabic events
+(`agent_started`, `tool_called`, `finding`, `agent_completed`) that the UI
+renders live. The advisor is the only LLM surface:
+
+- Context = engine outputs only (no raw transactions; PDPL minimization).
+- **Number-fidelity guardrail:** every reply's numbers must exist in the
+  engine context; percent forms match their decimal ratios (10.2% ↔ 0.102,
+  tolerance 5e-5); violations trigger one retry, then a deterministic Arabic
+  safe-fallback reply flagged `guardrail_fallback: true` end-to-end — the
+  chat UI renders it as a marked amber bubble.
+- Future (unbuilt): advisor tool-use loop replacing context stuffing; LLM
+  transaction categorizer (categories only, never amounts).
+
+## 8. MCP integration (developer tooling)
+
+`mcp_server/` hosts a local, read-only MCP (Model Context Protocol) stdio
+server for development: run the deterministic journey in-process, price
+financing, evaluate DBR scenarios, check offer-verification status, search
+docs, inspect config as booleans, and run allowlisted checks. It shares the
+engine and the catalog validation gate with the app but is never imported by
+it. Charter: no shell, no writes, no secrets, no network. Editor/session
+setup and the tool list live in `mcp_server/README.md` and (local-only)
+`docs/MCP_AND_SKILLS.md`.
+
+## 9. Database / storage plan
+
+- **Hot path:** in-memory stores, LRU-bounded (`JOURNEY_STORE_MAX` /
+  `APPLICATION_STORE_MAX`, default 500 each) so long-running demos cannot
+  grow without limit. `/analytics/overview` therefore reflects retained
+  (recent) sessions.
+- **Optional Postgres** via `DATABASE_URL` (`db/schema.sql`): journeys,
+  ordered agent events, application history persist; evicted entries reload
+  transparently on access. CI runs with Postgres up.
+- Offers stay JSON-first (`db/seed_offers.json`) behind `OffersRepo`; the
+  Postgres offers table exists in the schema when worth switching.
+
+## 10. Validation and guardrails
+
+- **Offer catalog gate** (`core/offers_catalog.py`): required fields, types,
+  enum membership, ranges (incl. the 4.9-vs-0.049 flat-rate unit trap),
+  unknown-key and duplicate-id rejection. All problems reported at once; the
+  API fails startup on an invalid catalog; MCP tools raise the same errors.
+- **Input validation:** pydantic at the API edge; explicit range/choice
+  validation in MCP tools.
+- **Number-fidelity guardrail** with percent equivalence + structured
+  fallback flag (§7).
+- **Contract fixture** (`core/tests/fixtures/frontend_contract_keys.json`):
+  backend payload keys are pinned against the frontend types; drift fails CI
+  with named keys. Update fixture + `types.ts` together.
+- `rate_verified:false` propagates to every surface; nothing placeholder can
+  look real.
+
+## 11. Testing strategy
+
+- `python -m pytest core/tests -q` — engine math (hand-computed fixtures),
+  guardrail (incl. percent + fallback), end-to-end journey over in-process
+  ASGI (no ports, no API key), catalog gate, store eviction, healthz,
+  contract, payload-size regressions. All new endpoints get tests here.
+- `python -m pytest mcp_server/tests -q` — tool validation and allowlist.
+- `cd frontend && npm run lint && npm run build` — the frontend gate (no JS
+  test framework yet; see §15).
+- CI (GitHub Actions): backend tests with Postgres service + frontend
+  lint/build. Keep every phase green before moving on.
+
+## 12. Security rules
+
+- Never commit `.env`; never log or return secret values. `/healthz` and
+  `/status` expose booleans/counts only (tested with planted canaries).
+- LLM context carries engine outputs, never raw transactions (PDPL
+  data-minimization by design).
+- Simulated features (OTP, application submission, bank data) stay labeled
+  simulated in API responses and UI copy — no exceptions.
+- No arbitrary command execution anywhere; MCP subprocesses are a fixed-argv
+  allowlist.
+- Landing/docs copy must not promise approval, imply licensure, or hide the
+  unverified-rates state.
+
+## 13. Demo-readiness checklist
+
+- [x] Full journey works end-to-end in the browser via `/journey` (verified).
+- [x] Landing, docs, status, error/404 pages live with nav + footer.
+- [x] Persona shortcuts pre-seed the journey form.
+- [x] All checks green: backend tests, MCP tests, frontend lint + build.
+- [x] Guardrail fallback visibly marked in chat.
+- [ ] **Offer rates verified from official lender pages (0/8 today)** — the
+      one open external item; `/status` and `GET /offers/verification` track
+      it (`ready_for_public_demo` stays false until then).
+- [ ] SAMA DBR ratios + admin-fee cap re-verified against the current Arabic
+      rulebook text with mentors.
+- [ ] Demo rehearsed with all three personas (rejected-with-reasons persona
+      is the strongest beat).
+
+## 14. Implementation phases
+
+| Status | Phase | Scope |
+|---|---|---|
+| ✅ | Engine + agents + API + mock OB | Deterministic core, journey pipeline + SSE, advisor guardrail, simulated applications, optional Postgres |
+| ✅ | Platform hardening | Catalog validation gate, LRU-bounded stores, `/healthz`, backend↔frontend contract test, guardrail percent fix + fallback flag |
+| ✅ | Full website | Landing + nav/footer + `/journey` move + persona preselect + `/docs` + `/status` + error/404 + Arabic webfont |
+| ⏳ | Data review (external) | Replace placeholder rates from official pages (target ≥15 offers), fill `source_url`/`retrieved_at`, flip `rate_verified` only with a real source |
+| ⏳ | Regulatory verification (external) | Arabic rulebook check of DBR tiers, tenor cap, fee cap |
+| 🔜 | Advisor tool-use loop | Engine-computed what-ifs via tool calls instead of context stuffing |
+| 🔜 | Journey state store | Stage-split or shared store so navigation cannot drop an in-flight journey |
+| 🔜 | Production edges | Nafath identity, licensed TPP, lender submission, hosting — all external-partner work |
+
+## 15. Priority table (next work, ranked)
+
+| # | Task | Why | Size |
+|---|---|---|---|
+| 1 | Verified offers data pass | Unblocks public demo; everything else is ready | external, days |
+| 2 | Advisor tool-use loop | Cheaper tokens, engine-computed what-ifs | L |
+| 3 | Journey state survives navigation (store/sessionStorage) | Removes the demo's one sharp edge | M |
+| 4 | Golden-journey snapshot tests per persona | Locks the demo output | S–M |
+| 5 | Frontend E2E smoke (Playwright) over the demo spine | Catches wiring breaks pre-demo | M |
+| 6 | LLM transaction categorizer + labeled dataset | Flagship agentic capability | M–L |
+| 7 | Structured logging + journey-scoped request IDs | Observability + audit trail | M |
+
+## 16. Known risks
+
+| Risk | State / mitigation |
+|---|---|
+| Placeholder rates leak into screenshots | `rate_verified` flag on every surface; `/status` shows honest 0/8; `ready_for_public_demo` gate |
+| Site nav can drop an in-flight journey (state is component-local) | Accepted for now; priority #3 fixes it; personas make re-runs cheap and deterministic |
+| SAMA rules drift from the current Arabic text | Rules isolated in `core/dbr.py` with rulebook citations; external verification pending |
+| Webfont fetch at build time needs network | CI has it; system-font stack remains the fallback; `next/font/local` is the offline escape hatch |
+| Analytics under LRU eviction shows recent-only activity | Documented on the endpoint and the status card label |
+| Regulatory misstep at launch | Demo/simulation framing everywhere until licensed; legal consult before real users or referral revenue |
+
+## 17. Done vs not done
+
+**Done (code, verified):** deterministic engine with SAMA DBR tiers ·
+flat→APR pricing + schedules · explainable matching + near-miss suggestions ·
+journey orchestrator with Arabic SSE events · guardrailed advisor (percent
+equivalence, retry, flagged safe fallback) · simulated OTP + application state
+machine · optional Postgres persistence · LRU-bounded stores · offer catalog
+validation gate · `/healthz` · backend↔frontend contract test · full website
+(landing, journey move + preselect, docs, status, error/404, nav/footer,
+Arabic webfont) · MCP dev tooling with tests · CI.
+
+**Not done (external / future):** verified offer rates (0/8 — the blocking
+item for public demo) · SAMA text re-verification · advisor tool-use loop ·
+transaction categorizer · journey state store · real identity (Nafath),
+licensed Open Banking, lender APIs · hosting/deployment · approval-likelihood
+modeling (needs real consented outcomes).
+
+### DBR rules encoded (verify before any public use)
+
+SAMA Responsible Lending Principles for Individual Customers, Quantitative
+Principles (paras 15–18); the Arabic text governs:
+
+| Total monthly income | Salary-linked cap (of gross salary) | Non-real-estate cap | Total cap |
+|---|---|---|---|
+| ≤ 15,000 | 33.33% employee / 25% retiree | 45% | 55% (65% if MoH/REDF beneficiary) |
+| 15,000–25,000 | 33.33% / 25% | 45% | 65% |
+| ≥ 25,000 | 33.33% / 25% | creditor policy | creditor policy |
+
+Also encoded: consumer tenor ≤ 60 months (except real estate & credit cards);
+other periodic income counts at **half** its verified average (para 16.b);
+the ≥25k tier reports `policy_review` instead of inventing a cap. Admin-fee
+cap (1% / SAR 5,000 in seeds) needs verification against the current consumer
+finance regulations.
+
+### Explicit non-goals
+
+No SME module, credit cards, or BNPL origination. No investment or trading
+features (separate CMA licensing world). No bank-partner portal until the
+consumer product is flagship-grade.
 
 ### Cost posture (bootstrapped)
 
-- Hosting: free tiers throughout (Vercel for frontend, Neon/Supabase for
-  Postgres, single small VM or Railway for the API if needed). Nothing in
-  Phases 1–3 should exceed ~SAR 0–50/month besides LLM usage.
-- LLM: usage-based; the deterministic engine keeps token spend low (agents
-  narrate, they don't compute). Add per-journey token accounting in the
-  trace log from day one.
-
----
-
-## 7. Risks
-
-| Risk | Mitigation |
-|---|---|
-| DBR rules drift from current SAMA text | Verify against Arabic rulebook + mentor review before any public demo; rules live in one module (`core/dbr.py`) |
-| Placeholder rates leak into screenshots | `rate_verified` flag rendered on every surface, no exceptions |
-| Agent theatrics without substance | Every event in the agents-at-work screen maps to a real tool call — no fake progress |
-| LLM latency makes the pipeline feel slow | Profile/Matching/Cost are deterministic-first; LLM narration streams in parallel, never blocks the numbers |
-| Regulatory misstep at launch | Demo/simulation framing until licensed; legal consult before any real user data or lender referral revenue |
-
----
-
-## 8. Immediate next steps
-
-1. Approve or amend this plan.
-2. Phase 1, step 1: define the agent event schema + SSE endpoint contract
-   (frontend and backend build against it in parallel).
-3. Phase 1, step 2: implement the orchestrator and refit the existing
-   Advisor agent into it; then Profile categorizer, Matching near-miss,
-   Cost schedules, Application state machine — one agent per PR.
+Free tiers throughout when hosting starts (Vercel + Neon/Supabase + small VM);
+nothing should exceed ~SAR 0–50/month besides LLM usage. The deterministic
+engine keeps token spend low; per-journey token usage is recorded in the
+trace events.

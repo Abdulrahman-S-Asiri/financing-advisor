@@ -1,3 +1,6 @@
+// Contract note: these types are mirrored by the backend contract fixture at
+// core/tests/fixtures/frontend_contract_keys.json (enforced by
+// core/tests/test_frontend_contract.py). Update both together.
 export type StageKey = "discover" | "define" | "develop" | "deliver";
 export type MatchStatus = "eligible" | "conditional" | "ineligible" | "policy_review";
 export type SortMode = "ranked" | "apr" | "installment" | "total";
@@ -139,6 +142,8 @@ export type SimulationResponse = {
 export type ChatMessage = {
   role: "user" | "advisor";
   text: string;
+  // True when the advisor reply is the guardrail's safe fallback.
+  fallback?: boolean;
 };
 
 export type SseEvent<T> = {
@@ -152,6 +157,7 @@ export type ChatStreamPayload = {
   delta?: string;
   reply?: string;
   detail?: string;
+  guardrail_fallback?: boolean;
 };
 
 export type ApplicationHistoryItem = {

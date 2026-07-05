@@ -5,7 +5,7 @@ This file records completed implementation phases, verification status, and the 
 ## Current Status
 
 - Branch: `master`
-- Latest documented phase: CI action runtime update
+- Latest documented phase: Production groundwork
 - Main app flow: consent simulation, live journey events, financial dashboard, offers marketplace, what-if simulator, advisor chat, and simulated application tracker.
 - Local private files are ignored by `.gitignore`, including `.env`, `.venv/`, frontend env files, Next cache, and dependency folders.
 
@@ -33,6 +33,19 @@ This file records completed implementation phases, verification status, and the 
 | Route mobile polish | Done | Offer detail topbar, hero copy, badges, trace text, and source links are tightened for small screens. |
 | Main flow mobile polish | Done | Journey controls, offer actions, badges, and chat text wrap more safely on narrow screens. |
 | CI action runtime update | Done | GitHub Actions first-party workflow actions are updated to Node 24-compatible major versions. |
+| Interim auth contract | Done | Simulated phone OTP start/verify/session endpoints are available for local product wiring. |
+| Open Banking gateway seam | Done | Mock AIS calls now pass through `api.open_banking.OpenBankingGateway`, with an integration status endpoint. |
+| Outcome analytics groundwork | Done | Aggregate-only analytics endpoint and data-product spec are available without raw persona IDs or transactions. |
+| Production readiness docs | Done | Auth, Open Banking, lender submission, compliance, and data-product next steps are documented. |
+| Advisor guardrail percent handling | Done | Percent-formatted rates now match their decimal context values (10.2% ↔ 0.102) within a strict tolerance; fabricated percentages remain blocked. |
+| Offer catalog validation gate | Done | `core/offers_catalog.py` validates fields, types, enums, ranges, unknown keys, and duplicate ids; the API fails startup with readable errors and MCP tooling shares the gate. |
+| Bounded in-memory stores | Done | Journey and application stores are LRU-bounded (default 500, env-overridable); Postgres reload on miss unchanged. |
+| Health endpoint | Done | `GET /healthz` reports version, offer count, and config booleans only — tested against secret leakage. |
+| Backend/frontend contract test | Done | Payload key sets pinned to `core/tests/fixtures/frontend_contract_keys.json`, mirroring frontend types; drift fails with named keys. |
+| Guardrail fallback surfaced | Done | `guardrail_fallback` flag flows from the advisor through chat JSON and the SSE done frame; chat renders flagged safe replies as marked amber bubbles. |
+| Full website shell | Done | Landing page, shared nav + footer with demo disclaimer, IBM Plex Sans Arabic, Arabic error/404 pages. |
+| Journey route move | Done | Journey extracted to `features/journey/JourneyApp.tsx`, served at `/journey` with `?persona=` preselect; offer-detail back-link updated. |
+| Docs and status pages | Done | `/docs` explains engine-vs-narrator and demo limits; `/status` shows health, honest rate-verification coverage (0/8), OB provider, and session activity from live endpoints. |
 
 ## Recent Commits
 
@@ -69,4 +82,6 @@ Before closing each phase:
 
 ## Next Planned Slice
 
-Continue end-to-end journey QA and capture any remaining product issues in the main flow.
+Continue end-to-end journey QA and verified lender offer review. Real Nafath,
+licensed Open Banking access, and lender submission remain external
+partnership/compliance work before production launch.

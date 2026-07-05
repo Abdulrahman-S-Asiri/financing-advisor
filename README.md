@@ -49,14 +49,20 @@ Everything else runs without any key.
 ## Architecture
 
 ```
-frontend/  ─────────  Arabic RTL Double Diamond app (:3000)
-   |  Discover        persona + consent + financing request
-   |  Define          extracted profile + affordability frame
-   |  Develop         ranked offers + eligibility reasons
-   |  Deliver         recommendation + optional advisor chat
+frontend/  ─────────  Arabic RTL website (:3000)
+   |  /            landing page (value prop + honesty strip + demo CTAs)
+   |  /journey     the Double Diamond app (?persona=<id> preselects the form)
+   |     Discover     persona + consent + financing request
+   |     Define       extracted profile + affordability frame
+   |     Develop      ranked offers + eligibility reasons
+   |     Deliver      recommendation + optional advisor chat
+   |  /journeys/[journeyId]/offers/[offerId]   offer detail + schedule
+   |  /docs        how it works + demo limitations
+   |  /status      internal status: health, rate-verification coverage
    |
    v
 api/  ──────────────  the platform API (:8000)
+   |  GET  /healthz             health + config booleans (never values)
    |  POST /journey/connect   consent -> profile -> matches (demo spine)
    |  POST /journey/connect/stream
    |  POST /advisor/chat      advisor agent over the journey result
@@ -68,6 +74,11 @@ api/  ──────────────  the platform API (:8000)
    |  GET  /offers/verification
    |  GET  /offers/review-checklist
    |  GET  /offers/review-checklist.csv
+   |  POST /auth/otp/start
+   |  POST /auth/otp/verify
+   |  GET  /auth/session/{session_token}
+   |  GET  /integrations/open-banking/status
+   |  GET  /analytics/overview
    |
    ├──> mock_open_banking/ (:8100)  AIS-shaped service over seeded personas.
    |        Real service boundary on purpose: swapping in a licensed TPP
@@ -78,6 +89,8 @@ api/  ──────────────  the platform API (:8000)
    |        dbr.py          SAMA Responsible Lending tiers (see table below)
    |        cost.py         flat-rate installments, APR via IRR, fees
    |        eligibility.py  rules engine + explainable rejections + ranking
+   |        offers_catalog.py  catalog validation gate (typos, ranges,
+   |                           duplicate ids fail loudly at load time)
    |
    └──> agents/             LLM layer (lazy — engine runs without it)
             advisor.py      narrates engine output, hard no-invented-numbers rule
@@ -157,7 +170,17 @@ of inventing a cap.
   agent traces, and application status history to Postgres. Without it, local
   demo sessions remain in-memory.
 - **No auth, no real Open Banking, no application submission, no SME
-  module** — cut by design; they are roadmap slides, not hackathon scope.
+  module** — production versions are cut by design; they are roadmap slides,
+  not hackathon scope. The API includes a simulated phone OTP contract for
+  local wiring only, and application submission remains clearly simulated.
 - Salary/obligation detection is heuristic (documented in
   `core/profile.py`); the LLM categorizer hook is where ambiguous
   descriptions go, never amounts or decisions.
+
+## Production Groundwork
+
+- `docs/PRODUCTION_READINESS.md` records the Nafath/identity, Open Banking,
+  lender-submission, and compliance work needed before real launch.
+- `docs/DATA_PRODUCTS.md` defines the first aggregate outcome data products.
+- `GET /analytics/overview` exposes aggregate demo-cache analytics without raw
+  persona IDs or raw transactions.

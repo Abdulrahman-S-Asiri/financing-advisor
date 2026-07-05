@@ -93,6 +93,24 @@ export const applicationStatusLabels: Record<string, string> = {
   declined: "مرفوض",
 };
 
+export const employmentLabels: Record<string, string> = {
+  government: "حكومي",
+  private: "قطاع خاص",
+  military: "عسكري",
+  retiree: "متقاعد",
+  self_employed: "عمل حر",
+};
+
+export const structureLabels: Record<string, string> = {
+  tawarruq: "تورق",
+  murabaha: "مرابحة",
+  ijarah: "إجارة",
+};
+
+// Shared tooltip for the unverified-rate badge across offer surfaces.
+export const unverifiedRateHint =
+  "سعر مبدئي لم يُراجع بعد من الصفحة الرسمية للجهة — التفاصيل في صفحة كيف يعمل.";
+
 export const confidenceLabels: Record<string, string> = {
   high: "عالية",
   medium: "متوسطة",

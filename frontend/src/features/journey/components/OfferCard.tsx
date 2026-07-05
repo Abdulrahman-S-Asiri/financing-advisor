@@ -1,7 +1,7 @@
 import { memo } from "react";
 import Link from "next/link";
 
-import { statusCopy } from "../data";
+import { statusCopy, unverifiedRateHint } from "../data";
 import {
   formatNearMiss,
   formatPercent,
@@ -33,7 +33,11 @@ export const OfferCard = memo(function OfferCard({
       <header>
         <div>
           <span className={`statusBadge ${status.className}`}>{status.label}</span>
-          {!match.rate_verified && <span className="warningBadge">سعر غير مؤكد</span>}
+          {!match.rate_verified && (
+            <span className="warningBadge" title={unverifiedRateHint}>
+              سعر غير مؤكد
+            </span>
+          )}
         </div>
         <strong>{match.institution}</strong>
         <p>{match.product}</p>

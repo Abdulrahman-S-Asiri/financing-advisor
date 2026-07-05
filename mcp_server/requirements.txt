@@ -1,0 +1,4 @@
+# Local MCP tooling only — the application runtime never needs this.
+# Install into the project venv:
+#   .venv\Scripts\python.exe -m pip install -r mcp_server\requirements.txt
+mcp>=1.2

@@ -7,3 +7,14 @@ frontend/.next/
 frontend/node_modules/
 frontend/out/
 frontend/.env*
+
+# Local assistant/tooling config — private by policy, never published.
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+AGENTS.local.md
+.claude/
+.agents/
+.mcp.json
+docs/MCP_AND_SKILLS.md
+docs/AI_UPGRADE_IDEAS.md

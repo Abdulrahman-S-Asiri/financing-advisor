@@ -4,6 +4,7 @@ from agents import advisor, llm_client
 from core.models import (
     Category,
     CostBreakdown,
+    DbrDecision,
     EmploymentType,
     FinancialProfile,
     MatchResult,
@@ -69,6 +70,74 @@ def _completion(text: str, input_tokens: int = 10, output_tokens: int = 5):
     )
 
 
+def _match_with_dbr() -> MatchResult:
+    match = _match()
+    match.dbr = DbrDecision(
+        passes=True,
+        tier="<=15k",
+        salary_linked_ratio=0.18,
+        non_real_estate_ratio=0.18,
+        total_ratio=0.18,
+        salary_linked_cap=1 / 3,
+        non_real_estate_cap=0.45,
+        total_cap=0.55,
+    )
+    return match
+
+
+def test_guardrail_accepts_percent_form_of_context_decimals():
+    # Context carries apr_effective=0.102 and flat_rate_annual=0.05 as
+    # decimals; stating them as percentages must not trip the guardrail.
+    context = advisor.build_context(_profile(), [_match()], 2_000)
+
+    assert advisor.unsupported_numbers("النسبة السنوية الفعلية هي 10.2%", context) == []
+    assert advisor.unsupported_numbers("The effective APR is 10.2%.", context) == []
+    assert advisor.unsupported_numbers("The flat rate is 5%.", context) == []
+
+
+def test_guardrail_accepts_two_decimal_percent_of_long_ratio():
+    # salary_linked_cap is 1/3 = 0.3333333... in context; the natural
+    # two-decimal phrasing is 33.33%.
+    context = advisor.build_context(_profile(), [_match_with_dbr()], 2_000)
+
+    assert advisor.unsupported_numbers("الحد الأقصى هو 33.33%", context) == []
+    assert advisor.unsupported_numbers("The total cap is 55%.", context) == []
+
+
+def test_guardrail_still_blocks_percent_numbers_absent_from_context():
+    context = advisor.build_context(_profile(), [_match_with_dbr()], 2_000)
+
+    # 10.5% has no 0.105 in context; 9.4% is a model-side rounding of 0.102
+    # territory; 33.4% is outside the tolerance around 1/3. All must block.
+    assert advisor.unsupported_numbers("The APR is 10.5%.", context) == ["10.5%"]
+    assert advisor.unsupported_numbers("Roughly 9.4% per year.", context) == ["9.4%"]
+    assert advisor.unsupported_numbers("The cap is 33.4%.", context) == ["33.4%"]
+
+
+def test_guardrail_percent_equivalence_needs_the_percent_sign():
+    # A bare "10.2" (no % marker) still requires a verbatim context match —
+    # the ratio equivalence never loosens unmarked numbers.
+    context = advisor.build_context(_profile(), [_match()], 2_000)
+
+    assert advisor.unsupported_numbers("القيمة هي 10.2", context) == ["10.2"]
+
+
+def test_advisor_does_not_retry_for_percent_phrasing(monkeypatch):
+    calls = {"count": 0}
+
+    def fake_complete(_system, _user):
+        calls["count"] += 1
+        return _completion("النسبة السنوية الفعلية هي 10.2% والقسط 1,597.22.")
+
+    monkeypatch.setattr(advisor.llm_client, "complete_with_usage", fake_complete)
+
+    result = advisor.chat_with_trace(_profile(), [_match()], 2_000, "ما هي النسبة؟")
+
+    assert calls["count"] == 1
+    assert result.guardrail_retries == 0
+    assert "10.2%" in result.reply
+
+
 def test_advisor_retries_when_reply_contains_unsupported_number(monkeypatch):
     replies = iter([
         "القسط هو 1,597.22 والرقم 999 غير مدعوم.",
@@ -107,9 +176,27 @@ def test_advisor_returns_fallback_when_retry_still_contains_unsupported_number(
         lambda _system, _user: _completion(next(replies)),
     )
 
-    reply = advisor.chat(_profile(), [_match()], 2_000, "ما هو القسط؟")
+    result = advisor.chat_with_trace(_profile(), [_match()], 2_000, "ما هو القسط؟")
 
-    assert "أرقام غير موجودة" in reply
+    assert "أرقام غير موجودة" in result.reply
+    assert result.guardrail_fallback is True
+
+
+def test_guardrail_fallback_flag_is_false_on_clean_and_retried_replies(monkeypatch):
+    replies = iter([
+        "القسط هو 1,597.22 والرقم 999 غير مدعوم.",
+        "القسط هو 1,597.22 حسب نتائج المحرك.",
+    ])
+    monkeypatch.setattr(
+        advisor.llm_client,
+        "complete_with_usage",
+        lambda _system, _user: _completion(next(replies)),
+    )
+
+    result = advisor.chat_with_trace(_profile(), [_match()], 2_000, "ما هو القسط؟")
+
+    assert result.guardrail_retries == 1
+    assert result.guardrail_fallback is False
 
 
 def test_advisor_trace_accumulates_usage_after_retry(monkeypatch):

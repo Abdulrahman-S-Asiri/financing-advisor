@@ -1,0 +1,136 @@
+{
+  "_comment": "Backend<->frontend payload contract. 'required' mirrors the types the frontend depends on (frontend/src/features/journey/types.ts); 'optional' lists backend-only extras or keys present only on detail surfaces. Update this file and types.ts together.",
+  "JourneyResponse": {
+    "required": [
+      "journey_id",
+      "profile",
+      "max_affordable_new_installment",
+      "financial_health",
+      "matches",
+      "events",
+      "suggested_questions"
+    ],
+    "optional": []
+  },
+  "FinancialProfile": {
+    "required": [
+      "persona_id",
+      "gross_salary",
+      "other_monthly_income_avg",
+      "employment_type",
+      "is_retiree",
+      "age",
+      "nationality",
+      "salary_linked_obligations",
+      "other_obligations",
+      "real_estate_obligations",
+      "months_observed",
+      "salary_bank",
+      "salary_stability_score",
+      "obligation_trend",
+      "confidence_level",
+      "detection_notes",
+      "total_monthly_income"
+    ],
+    "optional": ["mohousing_or_redf_beneficiary"]
+  },
+  "FinancialHealth": {
+    "required": [
+      "tier",
+      "salary_linked_ratio",
+      "non_real_estate_ratio",
+      "total_ratio",
+      "salary_linked_cap",
+      "non_real_estate_cap",
+      "total_cap",
+      "policy_review",
+      "breaches",
+      "max_affordable_new_installment",
+      "monthly_obligations"
+    ],
+    "optional": []
+  },
+  "OfferMatch": {
+    "required": [
+      "offer_id",
+      "institution",
+      "product",
+      "structure",
+      "status",
+      "monthly_installment",
+      "apr_effective",
+      "total_amount_payable",
+      "payment_schedule_months",
+      "reasons",
+      "conditions",
+      "rate_verified",
+      "near_miss_suggestions"
+    ],
+    "optional": ["category", "source_url", "retrieved_at", "cost_breakdown", "dbr"]
+  },
+  "NearMissSuggestion": {
+    "required": [
+      "kind",
+      "message",
+      "requested_amount",
+      "requested_tenor_months",
+      "monthly_installment",
+      "status"
+    ],
+    "optional": []
+  },
+  "AgentEvent": {
+    "required": [
+      "journey_id",
+      "sequence",
+      "type",
+      "agent",
+      "message_ar",
+      "payload",
+      "created_at"
+    ],
+    "optional": []
+  },
+  "SimulationResponse": {
+    "required": [
+      "requested_amount",
+      "requested_tenor_months",
+      "salary_transfer",
+      "max_affordable_new_installment",
+      "matches"
+    ],
+    "optional": ["journey_id", "tool", "event"]
+  },
+  "ApplicationRecord": {
+    "required": [
+      "application_id",
+      "journey_id",
+      "offer_id",
+      "status",
+      "summary",
+      "history",
+      "simulation"
+    ],
+    "optional": ["created_at", "updated_at"]
+  },
+  "ApplicationSummary": {
+    "required": [
+      "institution",
+      "product",
+      "monthly_installment",
+      "total_amount_payable",
+      "simulation_notice_ar"
+    ],
+    "optional": [
+      "applicant_persona_id",
+      "offer_status",
+      "requested_amount",
+      "requested_tenor_months",
+      "rate_verified"
+    ]
+  },
+  "ApplicationHistoryItem": {
+    "required": ["status", "message_ar", "created_at"],
+    "optional": []
+  }
+}

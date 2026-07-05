@@ -189,7 +189,7 @@ export default function OfferDetailPage() {
         <button className="backButton" type="button" onClick={() => router.back()}>
           العودة
         </button>
-        <Link className="detailLink" href="/">
+        <Link className="detailLink" href="/journey">
           الرحلة
         </Link>
       </header>

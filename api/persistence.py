@@ -1,8 +1,16 @@
-"""Journey persistence with an in-memory hot path and optional Postgres backing."""
+"""Journey persistence with an in-memory hot path and optional Postgres backing.
+
+The in-memory maps are LRU-bounded (JOURNEY_STORE_MAX / APPLICATION_STORE_MAX,
+default 500 each) so a long-running server cannot grow without limit. With
+Postgres configured, evicted entries transparently reload on access; without
+it, evicted entries are gone — acceptable for demo sessions. Consequence:
+/analytics/overview aggregates only the retained (recent) entries.
+"""
 from __future__ import annotations
 
 import logging
 import os
+from collections import OrderedDict
 from decimal import Decimal
 from typing import Any
 
@@ -14,6 +22,30 @@ from core.eligibility import match_offer, rank_matches
 from core.models import EmploymentType, FinancialProfile, Offer
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_STORE_MAX = 500
+
+
+def _env_int(name: str, default: int) -> int:
+    # Local copy of the api.main helper: this module must stay importable
+    # without pulling in the FastAPI app.
+    try:
+        return int(os.environ.get(name, str(default)))
+    except ValueError:
+        return default
+
+
+def _touch(entries: OrderedDict, key: str) -> None:
+    """Mark a key most-recently-used."""
+    entries.move_to_end(key)
+
+
+def _insert_bounded(entries: OrderedDict, key: str, value: Any, cap: int) -> None:
+    """Insert as most-recently-used and evict the oldest entries past cap."""
+    entries[key] = value
+    entries.move_to_end(key)
+    while len(entries) > cap:
+        entries.popitem(last=False)
 
 
 def _as_float(value: Any) -> float:
@@ -282,10 +314,16 @@ class JourneyStore:
         self,
         offers: list[Offer],
         database_url: str | None = None,
+        max_entries: int | None = None,
     ):
         self._offers = offers
-        self._sessions: dict[str, dict[str, Any]] = {}
-        self._journeys: dict[str, dict[str, Any]] = {}
+        self._max_entries = (
+            max_entries
+            if max_entries is not None
+            else _env_int("JOURNEY_STORE_MAX", DEFAULT_STORE_MAX)
+        )
+        self._sessions: OrderedDict[str, dict[str, Any]] = OrderedDict()
+        self._journeys: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._postgres = (
             PostgresJourneyPersistence(database_url)
             if database_url
@@ -311,14 +349,14 @@ class JourneyStore:
             "requested_amount": requested_amount,
             "requested_tenor_months": requested_tenor_months,
         }
-        self._sessions[result.profile.persona_id] = session
-        self._journeys[result.journey_id] = session
+        self._cache(session)
         if self._postgres:
             self._postgres.save_journey(result, requested_amount, requested_tenor_months)
 
     def get_by_persona(self, persona_id: str) -> dict[str, Any] | None:
         session = self._sessions.get(persona_id)
         if session is not None:
+            _touch(self._sessions, persona_id)
             return session
         if self._postgres:
             session = self._postgres.load_latest_for_persona(persona_id, self._offers)
@@ -329,6 +367,7 @@ class JourneyStore:
     def get_by_journey(self, journey_id: str) -> dict[str, Any] | None:
         session = self._journeys.get(journey_id)
         if session is not None:
+            _touch(self._journeys, journey_id)
             return session
         if self._postgres:
             session = self._postgres.load_journey(journey_id, self._offers)
@@ -341,9 +380,16 @@ class JourneyStore:
         if self._postgres:
             self._postgres.save_event(event)
 
+    def all_sessions(self) -> list[dict[str, Any]]:
+        return list(self._journeys.values())
+
     def _cache(self, session: dict[str, Any]) -> None:
-        self._journeys[session["journey_id"]] = session
-        self._sessions[session["profile"].persona_id] = session
+        _insert_bounded(
+            self._journeys, session["journey_id"], session, self._max_entries
+        )
+        _insert_bounded(
+            self._sessions, session["profile"].persona_id, session, self._max_entries
+        )
 
 
 class PostgresApplicationPersistence:
@@ -433,8 +479,19 @@ class PostgresApplicationPersistence:
 
 
 class ApplicationStore:
-    def __init__(self, database_url: str | None = None):
-        self._applications: dict[str, application_agent.ApplicationRecord] = {}
+    def __init__(
+        self,
+        database_url: str | None = None,
+        max_entries: int | None = None,
+    ):
+        self._max_entries = (
+            max_entries
+            if max_entries is not None
+            else _env_int("APPLICATION_STORE_MAX", DEFAULT_STORE_MAX)
+        )
+        self._applications: OrderedDict[str, application_agent.ApplicationRecord] = (
+            OrderedDict()
+        )
         self._postgres = (
             PostgresApplicationPersistence(database_url)
             if database_url
@@ -446,16 +503,24 @@ class ApplicationStore:
         return bool(self._postgres and self._postgres.enabled)
 
     def save(self, record: application_agent.ApplicationRecord) -> None:
-        self._applications[record.application_id] = record
+        _insert_bounded(
+            self._applications, record.application_id, record, self._max_entries
+        )
         if self._postgres:
             self._postgres.save(record)
 
     def get(self, application_id: str) -> application_agent.ApplicationRecord | None:
         record = self._applications.get(application_id)
         if record is not None:
+            _touch(self._applications, application_id)
             return record
         if self._postgres:
             record = self._postgres.load(application_id)
             if record is not None:
-                self._applications[application_id] = record
+                _insert_bounded(
+                    self._applications, application_id, record, self._max_entries
+                )
         return record
+
+    def all_applications(self) -> list[application_agent.ApplicationRecord]:
+        return list(self._applications.values())

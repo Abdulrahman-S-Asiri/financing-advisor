@@ -1,0 +1,6 @@
+[mcp_servers.financing-advisor]
+command = ".venv/Scripts/python.exe"
+args = [
+    "-m",
+    "mcp_server.server",
+]

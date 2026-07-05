@@ -48,6 +48,10 @@ class AdvisorChatResult:
     usage: dict
     guardrail_retries: int = 0
     unsupported_numbers: list[str] | None = None
+    # True only when the reply is the deterministic safe fallback (both model
+    # attempts contained unsupported numbers). The API forwards this so the UI
+    # can mark the message honestly instead of string-matching the prose.
+    guardrail_fallback: bool = False
 
 
 def build_context(profile: FinancialProfile, matches: list[MatchResult],
@@ -93,6 +97,25 @@ def _number_value(token: str) -> float | None:
         return None
 
 
+# Half of 0.01 percentage points: wide enough that a two-decimal percentage
+# (33.33%) matches its long-decimal context ratio (0.3333333...), narrow
+# enough that a model-rounded figure (9.4% for 0.0937) stays blocked.
+_PERCENT_RATIO_TOLERANCE = 5e-5
+
+
+def _supported(token: str, value: float, allowed: set[float]) -> bool:
+    """The engine stores rates as decimals (apr_effective: 0.102) while the
+    advisor naturally states them as percentages (10.2%). A percent-marked
+    token is therefore also supported when its /100 ratio appears in the
+    context; unmarked numbers still require a verbatim match."""
+    if value in allowed:
+        return True
+    if token.endswith("%"):
+        ratio = value / 100.0
+        return any(abs(ratio - candidate) <= _PERCENT_RATIO_TOLERANCE for candidate in allowed)
+    return False
+
+
 def unsupported_numbers(reply: str, context: str) -> list[str]:
     allowed = {
         value
@@ -103,7 +126,7 @@ def unsupported_numbers(reply: str, context: str) -> list[str]:
     seen: set[float] = set()
     for token in _number_tokens(reply):
         value = _number_value(token)
-        if value is None or value in allowed or value in seen:
+        if value is None or value in seen or _supported(token, value, allowed):
             continue
         blocked.append(token)
         seen.add(value)
@@ -191,6 +214,7 @@ def chat_with_trace(
             usage=_usage_payload(completions),
             guardrail_retries=1,
             unsupported_numbers=blocked + retry_blocked,
+            guardrail_fallback=True,
         )
     return AdvisorChatResult(
         reply=retry_completion.text,

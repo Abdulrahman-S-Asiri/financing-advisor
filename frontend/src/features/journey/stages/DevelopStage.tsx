@@ -1,4 +1,11 @@
-import { statusCopy, sortOptions, statusFilters, structureFilters } from "../data";
+import {
+  sortOptions,
+  statusCopy,
+  statusFilters,
+  structureFilters,
+  structureLabels,
+  unverifiedRateHint,
+} from "../data";
 import { formatPercent, formatSar } from "../format";
 import type { JourneyResponse, MatchStatus, OfferMatch, SortMode } from "../types";
 import { EmptyState } from "../components/EmptyState";
@@ -27,6 +34,7 @@ export type DevelopStageProps = {
   onSimulatorSalaryTransferChange: (value: boolean) => void;
   onSimulatorTenorChange: (value: number) => void;
   onToggleCompare: (offerId: string) => void;
+  onFiltersReset?: () => void;
 };
 
 export default function DevelopStage({
@@ -52,6 +60,7 @@ export default function DevelopStage({
   onSimulatorSalaryTransferChange,
   onSimulatorTenorChange,
   onToggleCompare,
+  onFiltersReset,
 }: DevelopStageProps) {
   if (!journey) {
     return <EmptyState title="لا توجد عروض بعد" />;
@@ -183,7 +192,11 @@ export default function DevelopStage({
             />
           ))
         ) : (
-          <EmptyState title="لا توجد عروض مطابقة" />
+          <EmptyState
+            title="لا توجد عروض مطابقة للتصفية الحالية"
+            actionLabel={onFiltersReset ? "إظهار كل العروض" : undefined}
+            onAction={onFiltersReset}
+          />
         )}
       </section>
     </div>
@@ -216,7 +229,11 @@ function ComparePanel({
               <header>
                 <div>
                   <span className={`statusBadge ${status.className}`}>{status.label}</span>
-                  {!match.rate_verified && <span className="warningBadge">سعر غير مؤكد</span>}
+                  {!match.rate_verified && (
+                    <span className="warningBadge" title={unverifiedRateHint}>
+                      سعر غير مؤكد
+                    </span>
+                  )}
                 </div>
                 <strong>{match.institution}</strong>
                 <p>{match.product}</p>
@@ -240,7 +257,7 @@ function ComparePanel({
                 </div>
                 <div>
                   <dt>الهيكل</dt>
-                  <dd>{match.structure}</dd>
+                  <dd>{structureLabels[match.structure] ?? match.structure}</dd>
                 </div>
                 <div>
                   <dt>جدول السداد</dt>

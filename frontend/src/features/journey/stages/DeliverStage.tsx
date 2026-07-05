@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { FormEvent } from "react";
 
 import { applicationProgressOrder, applicationStatusLabels, statusCopy } from "../data";
@@ -71,7 +72,10 @@ export default function DeliverStage({
         )}
 
         <ol className="nextSteps">
-          <li>مراجعة العروض ذات الأسعار غير المؤكدة قبل أي عرض رسمي.</li>
+          <li>
+            مراجعة العروض ذات الأسعار غير المؤكدة قبل أي عرض رسمي —{" "}
+            <Link href="/status">تابع نسبة التحقق</Link>.
+          </li>
           <li>مطابقة المتطلبات مع جهة العمل وتحويل الراتب إن كان شرطاً.</li>
           <li>حفظ أسباب الرفض لشرح القرار للعميل أو لجنة التحكيم.</li>
         </ol>
@@ -103,7 +107,15 @@ export default function DeliverStage({
             <p className="emptyText">اسأل عن سبب التوصية أو الرفض بناءً على نتائج الرحلة.</p>
           )}
           {chatMessages.map((message, index) => (
-            <p key={`${message.role}-${index}`} className={`chatBubble ${message.role}`}>
+            <p
+              key={`${message.role}-${index}`}
+              className={`chatBubble ${message.role}${message.fallback ? " chatFallback" : ""}`}
+            >
+              {message.fallback && (
+                <span className="chatFallbackBadge">
+                  رد آمن — تم حجب أرقام غير مدعومة
+                </span>
+              )}
               {message.text}
             </p>
           ))}

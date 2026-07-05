@@ -1,6 +1,7 @@
 import {
   agentLabels,
   confidenceLabels,
+  employmentLabels,
   eventLabels,
   trendLabels,
 } from "../data";
@@ -94,7 +95,7 @@ export default function DefineStage({
           </div>
           <div>
             <dt>نوع العمل</dt>
-            <dd>{profile.employment_type}</dd>
+            <dd>{employmentLabels[profile.employment_type] ?? profile.employment_type}</dd>
           </div>
           <div>
             <dt>الأشهر المرصودة</dt>

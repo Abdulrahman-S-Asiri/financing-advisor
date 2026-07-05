@@ -12,6 +12,8 @@
   --amber: #b26b00;
   --red: #b42318;
   --shadow: 0 18px 45px rgba(24, 32, 30, 0.08);
+  --nav-h: 3.75rem;
+  --maxw: 72rem;
 }
 
 * {
@@ -30,6 +32,7 @@ body {
     var(--background);
   color: var(--ink);
   font-family:
+    var(--font-plex),
     "Segoe UI",
     Tahoma,
     Arial,
@@ -1518,5 +1521,683 @@ input:focus {
 
   .chatForm {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ===== Site shell: nav, footer, landing, docs, status ===== */
+
+a.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.siteNav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+
+.siteNavInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: var(--maxw);
+  min-height: var(--nav-h);
+  margin: 0 auto;
+  padding: 0.4rem 1.25rem;
+}
+
+.siteNavBrand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.siteNavBrandName {
+  font-size: 1.02rem;
+}
+
+.siteNavDemoPill {
+  padding: 0.14rem 0.55rem;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--teal-dark);
+  border: 1px solid rgba(14, 118, 110, 0.25);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.siteNavLinks {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.siteNavLink {
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.6rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 600;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.siteNavLink:hover {
+  background: var(--surface-soft);
+  color: var(--teal-dark);
+}
+
+.siteNavLinkActive {
+  background: var(--surface-soft);
+  color: var(--teal-dark);
+}
+
+.siteNavToggle {
+  display: none;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: var(--surface);
+  padding: 0.35rem 0.7rem;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+.siteFooter {
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  margin-top: 2.5rem;
+}
+
+.siteFooterGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 2fr;
+  gap: 2rem;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 2rem 1.25rem 2.4rem;
+}
+
+.siteFooterBrand {
+  margin: 0 0 0.4rem;
+  font-weight: 700;
+  color: var(--teal-dark);
+}
+
+.siteFooterNote {
+  margin: 0 0 0.6rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.siteFooterNote a {
+  color: var(--teal-dark);
+}
+
+.siteFooterDisclaimer {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.6rem;
+  background: rgba(178, 107, 0, 0.08);
+  border: 1px solid rgba(178, 107, 0, 0.25);
+  color: var(--amber);
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+
+.siteFooterLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.siteFooterLinks a {
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.siteFooterLinks a:hover {
+  color: var(--teal-dark);
+}
+
+.sitePage {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+}
+
+.siteErrorState {
+  margin-top: 3rem;
+}
+
+.siteErrorActions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+/* Landing */
+
+.landingHero {
+  display: grid;
+  gap: 1.1rem;
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 3.5rem 0 2.5rem;
+  text-align: center;
+}
+
+.landingHero h1 {
+  margin: 0;
+  font-size: clamp(1.9rem, 4.5vw, 2.9rem);
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.landingHero .eyebrow {
+  margin: 0 auto;
+}
+
+.landingLead {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.9;
+}
+
+.landingCtaRow {
+  display: flex;
+  justify-content: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.landingCtaSecondary {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.7rem 1.3rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.landingCtaSecondary:hover {
+  border-color: var(--teal);
+  color: var(--teal-dark);
+}
+
+.landingHonesty {
+  margin: 0 auto;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  background: rgba(178, 107, 0, 0.08);
+  border: 1px solid rgba(178, 107, 0, 0.25);
+  color: var(--amber);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.landingSection {
+  padding: 2.2rem 0;
+}
+
+.landingSection > h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.45rem;
+}
+
+.landingSectionLead {
+  margin: 0 0 1.4rem;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.landingSteps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.landingStepCard {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  padding: 1.1rem;
+  box-shadow: var(--shadow);
+}
+
+.landingStepDiamond {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  margin-bottom: 0.7rem;
+  background: var(--teal);
+  color: #fff;
+  font-weight: 700;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+
+.landingStepCard h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.02rem;
+}
+
+.landingStepCard p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.75;
+}
+
+.landingTrust {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.landingTrustCard {
+  background: var(--surface-soft);
+  border: 1px solid rgba(14, 118, 110, 0.2);
+  border-radius: 0.9rem;
+  padding: 1.2rem;
+}
+
+.landingTrustCard h3 {
+  margin: 0 0 0.45rem;
+  font-size: 1rem;
+  color: var(--teal-dark);
+}
+
+.landingTrustCard p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1.8;
+}
+
+.landingTrustCard a {
+  color: var(--teal-dark);
+}
+
+.landingPersonas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.landingPersonaCard {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  padding: 1.1rem;
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.landingPersonaCard:hover {
+  border-color: var(--teal);
+  transform: translateY(-2px);
+}
+
+.landingPersonaCard h3 {
+  margin: 0 0 0.3rem;
+  font-size: 1rem;
+}
+
+.landingPersonaCard p {
+  margin: 0 0 0.6rem;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.7;
+}
+
+.landingPersonaMeta {
+  display: flex;
+  gap: 0.6rem;
+  color: var(--teal-dark);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.landingCaption {
+  margin: 0.9rem 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.landingCtaBand {
+  display: grid;
+  gap: 0.9rem;
+  justify-items: center;
+  text-align: center;
+  background: var(--teal-dark);
+  border-radius: 1rem;
+  padding: 2.2rem 1.4rem;
+  margin: 1.5rem 0 0.5rem;
+}
+
+.landingCtaBand h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.4rem;
+}
+
+.landingCtaBand p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.92rem;
+}
+
+/* Docs */
+
+.docsPage {
+  max-width: 50rem;
+}
+
+.docsPage > h1 {
+  margin: 1rem 0 0.4rem;
+  font-size: 1.8rem;
+}
+
+.docsLead {
+  margin: 0 0 1.6rem;
+  color: var(--muted);
+  line-height: 1.9;
+}
+
+.docsSection {
+  margin-bottom: 1.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  padding: 1.3rem 1.4rem;
+}
+
+.docsSection h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1.15rem;
+  color: var(--teal-dark);
+}
+
+.docsSection p,
+.docsSection li {
+  color: var(--ink);
+  font-size: 0.94rem;
+  line-height: 1.9;
+}
+
+.docsSection ul {
+  margin: 0.4rem 0 0;
+  padding-inline-start: 1.2rem;
+}
+
+.docsSection a {
+  color: var(--teal-dark);
+}
+
+.docsFlow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.docsFlowBox {
+  background: var(--surface-soft);
+  border: 1px solid rgba(14, 118, 110, 0.25);
+  border-radius: 0.6rem;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--teal-dark);
+}
+
+.docsFlowArrow {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+/* Status */
+
+.statusHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 1rem 0 1.2rem;
+}
+
+.statusHeader h1 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.statusGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.statusCard {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  padding: 1.15rem 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+.statusCard h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.02rem;
+}
+
+.statusRows {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  font-size: 0.9rem;
+}
+
+.statusRow span:first-child {
+  color: var(--muted);
+}
+
+.statusBool {
+  padding: 0.12rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.statusBoolOn {
+  background: rgba(25, 135, 84, 0.12);
+  color: var(--green);
+}
+
+.statusBoolOff {
+  background: rgba(100, 112, 109, 0.12);
+  color: var(--muted);
+}
+
+.statusBoolWarn {
+  background: rgba(180, 35, 24, 0.1);
+  color: var(--red);
+}
+
+.statusIssueList {
+  margin: 0.6rem 0 0;
+  padding-inline-start: 1.1rem;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.8;
+}
+
+.statusDownCard {
+  grid-column: 1 / -1;
+  background: rgba(180, 35, 24, 0.06);
+  border: 1px solid rgba(180, 35, 24, 0.3);
+  border-radius: 0.9rem;
+  padding: 1.2rem 1.3rem;
+}
+
+.statusDownCard h2 {
+  margin: 0 0 0.4rem;
+  color: var(--red);
+  font-size: 1.05rem;
+}
+
+.statusDownCard code {
+  display: inline-block;
+  direction: ltr;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.82rem;
+}
+
+.personaShortcuts {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.4rem;
+}
+
+.personaShortcuts a {
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.personaShortcuts a:hover {
+  border-color: var(--teal);
+  color: var(--teal-dark);
+}
+
+.statusRefresh {
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: var(--surface);
+  padding: 0.45rem 1rem;
+  font-weight: 600;
+}
+
+.statusRefresh:hover:not(:disabled) {
+  border-color: var(--teal);
+  color: var(--teal-dark);
+}
+
+.statusMeta {
+  margin: 0.8rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+/* Advisor guardrail fallback bubble */
+
+.chatBubble.chatFallback {
+  background: #fff8e8;
+  border: 1px solid rgba(178, 107, 0, 0.35);
+  color: var(--ink);
+}
+
+.chatFallbackBadge {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: var(--amber);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+/* Site-shell responsive rules (own media queries — existing blocks untouched) */
+
+@media (max-width: 1080px) {
+  .landingSteps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .landingTrust,
+  .landingPersonas {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .siteNavToggle {
+    display: inline-flex;
+  }
+
+  .siteNavLinks {
+    display: none;
+  }
+
+  .siteNavLinks.siteNavMenuOpen {
+    display: flex;
+    position: absolute;
+    inset-inline: 0;
+    top: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 0.6rem 1.25rem 0.9rem;
+    box-shadow: var(--shadow);
+  }
+
+  .siteNav {
+    position: sticky;
+  }
+
+  .siteNavInner {
+    position: relative;
+  }
+
+  .landingSteps {
+    grid-template-columns: 1fr;
+  }
+
+  .siteFooterGrid {
+    grid-template-columns: 1fr;
+    gap: 1.4rem;
+  }
+
+  .statusGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .landingHero {
+    padding: 2.4rem 0 1.8rem;
   }
 }
