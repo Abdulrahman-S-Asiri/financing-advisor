@@ -18,6 +18,7 @@ export default function SiteFooter() {
 
         <nav className="siteFooterLinks" aria-label="روابط الموقع">
           <Link href="/journey">ابدأ الرحلة</Link>
+          <Link href="/debt-payment">سداد المديونية قريباً</Link>
           <Link href="/docs">كيف يعمل</Link>
           <Link href="/status">حالة المنصة</Link>
         </nav>

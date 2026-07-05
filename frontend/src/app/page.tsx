@@ -105,6 +105,23 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <section className="landingSection" aria-label="ميزة قادمة">
+        <div className="landingUpcomingCard">
+          <div>
+            <span className="warningBadge">قريباً</span>
+            <h2>سداد المديونية قبل التمويل الجديد</h2>
+            <p>
+              ميزة قادمة لمحاكاة أثر سداد الالتزامات الحالية على نسب الملاءة
+              والأهلية، مع بقاء كل الحسابات داخل المحرك الحتمي ودون تنفيذ أي
+              عملية دفع حقيقية.
+            </p>
+          </div>
+          <Link className="landingCtaSecondary" href="/debt-payment">
+            تفاصيل الميزة
+          </Link>
+        </div>
+      </section>
+
       <section className="landingSection" aria-label="شخصيات التجربة">
         <h2>جرّب بثلاث شخصيات جاهزة</h2>
         <div className="landingPersonas">

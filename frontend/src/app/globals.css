@@ -1836,6 +1836,29 @@ a.primaryButton {
   color: var(--teal-dark);
 }
 
+.landingUpcomingCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid rgba(39, 86, 163, 0.22);
+  border-radius: 0.9rem;
+  background: #f4f8ff;
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+}
+
+.landingUpcomingCard h2 {
+  margin: 0.6rem 0 0.45rem;
+  font-size: 1.25rem;
+}
+
+.landingUpcomingCard p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
 .landingPersonas {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1952,6 +1975,102 @@ a.primaryButton {
 
 .docsSection a {
   color: var(--teal-dark);
+}
+
+/* Debt payment coming soon */
+
+.debtPaymentPage {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.debtPaymentHero {
+  display: grid;
+  gap: 1rem;
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 3.2rem 0 1.6rem;
+  text-align: center;
+  justify-items: center;
+}
+
+.debtPaymentHero h1 {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(1.8rem, 4vw, 2.7rem);
+  line-height: 1.35;
+}
+
+.debtPaymentHero .eyebrow {
+  margin: 0;
+}
+
+.debtPaymentLead {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.03rem;
+  line-height: 1.9;
+}
+
+.debtPaymentActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.8rem;
+}
+
+.debtPaymentActions .primaryButton {
+  width: auto;
+}
+
+.debtPaymentGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.debtPaymentCard,
+.debtPaymentNotice {
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 1.2rem;
+}
+
+.debtPaymentCard h3 {
+  margin: 0 0 0.45rem;
+  color: var(--blue);
+  font-size: 1rem;
+}
+
+.debtPaymentCard p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.debtPaymentNotice {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 1rem;
+  align-items: start;
+  background: #fffaf0;
+  border-color: rgba(178, 107, 0, 0.25);
+}
+
+.debtPaymentNotice h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.debtPaymentNotice ul {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding-inline-start: 1.2rem;
+  color: var(--ink);
+  line-height: 1.8;
 }
 
 .docsFlow {
@@ -2149,7 +2268,9 @@ a.primaryButton {
   }
 
   .landingTrust,
-  .landingPersonas {
+  .landingPersonas,
+  .debtPaymentGrid,
+  .debtPaymentNotice {
     grid-template-columns: 1fr;
   }
 }
@@ -2186,6 +2307,14 @@ a.primaryButton {
 
   .landingSteps {
     grid-template-columns: 1fr;
+  }
+
+  .landingUpcomingCard {
+    grid-template-columns: 1fr;
+  }
+
+  .landingUpcomingCard .landingCtaSecondary {
+    justify-content: center;
   }
 
   .siteFooterGrid {

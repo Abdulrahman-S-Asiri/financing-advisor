@@ -7,6 +7,7 @@ import { useState } from "react";
 const links = [
   { href: "/", label: "الرئيسية" },
   { href: "/journey", label: "الرحلة" },
+  { href: "/debt-payment", label: "سداد المديونية" },
   { href: "/docs", label: "كيف يعمل" },
   { href: "/status", label: "الحالة" },
 ];
