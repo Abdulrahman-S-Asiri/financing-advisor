@@ -1,3 +1,5 @@
+import { strings } from "@/lib/strings";
+
 type AtharLogoProps = {
   variant?: "horizontal" | "arabic" | "mark";
   tone?: "default" | "reversed";
@@ -77,7 +79,7 @@ export function AtharLogo({
 
   if (variant === "mark") {
     return (
-      <span aria-label="أثر" className={`inline-flex items-center ${className}`}>
+      <span aria-label={strings.logo.ariaMark} className={`inline-flex items-center ${className}`}>
         <AtharMark className={classes.mark} tone={tone} />
       </span>
     );
@@ -85,7 +87,7 @@ export function AtharLogo({
 
   return (
     <span
-      aria-label="أثر - ATHAR"
+      aria-label={strings.logo.ariaLockup}
       className={`inline-flex items-center ${classes.wrapper} ${className}`}
     >
       <AtharMark className={classes.mark} tone={tone} />
@@ -94,10 +96,10 @@ export function AtharLogo({
           className={`${classes.word} font-black tracking-normal ${textTone}`}
           lang={variant === "horizontal" ? "en" : "ar"}
         >
-          {variant === "horizontal" ? "ATHAR" : "أثر"}
+          {variant === "horizontal" ? strings.logo.englishWordmark : strings.logo.arabicWordmark}
         </strong>
         <small className={`mt-1 font-semibold tracking-normal ${classes.sub} ${subTone}`}>
-          {variant === "horizontal" ? "AGENTIC FINANCING ADVISOR" : "مستشار تمويل وكيلي"}
+          {variant === "horizontal" ? strings.logo.englishDescriptor : strings.logo.arabicDescriptor}
         </small>
       </span>
     </span>

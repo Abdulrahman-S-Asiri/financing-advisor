@@ -102,7 +102,7 @@ function PersonaButton({
           {formatSar(persona.amount)}
         </span>
         <span className="rounded-full bg-background px-3 py-1">
-          {formatNumber(persona.tenor)} شهر
+          {formatNumber(persona.tenor)} {strings.common.monthSuffix}
         </span>
       </span>
     </button>

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui";
 import {
   sortOptions,
+  statusCopy,
   statusFilters,
   structureFilters,
   structureLabels,
@@ -286,7 +287,7 @@ function HardBreachNotice({ breaches }: { breaches: string[] }) {
     <Card className="border-danger/40 bg-danger/5">
       <SectionHeading
         title={strings.offers.hardBreachTitle}
-        trailing={<Badge tone="danger">غير مؤهل</Badge>}
+        trailing={<Badge tone="danger">{statusCopy.ineligible.label}</Badge>}
       />
       <p className="text-sm leading-7 text-muted">{strings.offers.hardBreachText}</p>
       <ul className="mt-3 space-y-1">

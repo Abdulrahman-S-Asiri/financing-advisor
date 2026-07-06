@@ -10,7 +10,27 @@ export const strings = {
     retry: "إعادة المحاولة",
     backHome: "العودة للرئيسية",
     notAvailable: "غير متاح",
+    creditorPolicy: "سياسة الممول",
+    sarSuffix: "ريال",
+    monthSuffix: "شهر",
     apr: "APR",
+    serverConnectionError: "تعذر الاتصال بالخادم.",
+    streamReadError: "تعذر قراءة البث من الخادم.",
+  },
+  logo: {
+    ariaMark: "أثر",
+    ariaLockup: "أثر - ATHAR",
+    arabicWordmark: "أثر",
+    englishWordmark: "ATHAR",
+    arabicDescriptor: "مستشار تمويل وكيلي",
+    englishDescriptor: "AGENTIC FINANCING ADVISOR",
+  },
+  formatting: {
+    expectedInstallment: " القسط المتوقع ",
+    statusPrefix: " بحالة ",
+    lowerAmountPath: "مسار متاح عند ",
+    shorterTenorPath: "مسار متاح عند مدة ",
+    salaryTransferPath: "تحويل الراتب يفتح هذا المسار",
   },
   meta: {
     title: "أثر — مستشار التمويل",
@@ -47,6 +67,12 @@ export const strings = {
     ctaPrimary: "ابدأ الرحلة التجريبية",
     ctaSecondary: "كيف يعمل",
     honestyStrip: "بيانات بنكية محاكاة · أسعار العروض غير مؤكدة · لا يُعد عرضاً تمويلياً",
+    metrics: [
+      { value: 4, label: "مراحل قرار" },
+      { value: 3, label: "شخصيات تجريبية" },
+      { value: 0, label: "طلبات حقيقية" },
+    ],
+    stepsEyebrow: "مسار أثر",
     stepsTitle: "أربع مراحل، شفافة من البداية للنهاية",
     steps: [
       {

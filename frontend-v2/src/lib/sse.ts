@@ -1,6 +1,7 @@
 // SSE frame parsing + stream consumption, ported from v1's proven logic
 // (partial-frame buffering included). Frames: event/id/retry/data lines,
 // blocks separated by blank lines, data is JSON.
+import { strings } from "@/lib/strings";
 
 export type SseEvent<T> = {
   event: string;
@@ -54,7 +55,7 @@ export async function consumeSseResponse(
 ): Promise<void> {
   const reader = response.body?.getReader();
   if (!reader) {
-    throw new Error("تعذر قراءة البث من الخادم.");
+    throw new Error(strings.common.streamReadError);
   }
 
   const decoder = new TextDecoder();

@@ -14,6 +14,7 @@ import {
   paymentScheduleResponseSchema,
   simulationResponseSchema,
 } from "@/lib/schemas";
+import { strings } from "@/lib/strings";
 
 export class ApiError extends Error {
   constructor(
@@ -34,7 +35,7 @@ export async function fetchJson<Schema extends z.ZodType>(
   path: string,
   schema: Schema,
   init?: RequestInit,
-  errorFallback = "تعذر الاتصال بالخادم.",
+  errorFallback = strings.common.serverConnectionError,
 ): Promise<z.infer<Schema>> {
   const response = await fetch(path, {
     ...init,

@@ -13,11 +13,7 @@ const numberFormatter = new Intl.NumberFormat("ar-SA", {
   maximumFractionDigits: 0,
 });
 
-const metrics = [
-  { value: 4, label: "مراحل قرار" },
-  { value: 3, label: "شخصيات تجريبية" },
-  { value: 0, label: "طلبات حقيقية" },
-];
+const metrics = strings.landing.metrics;
 
 function CountUp({ value }: { value: number }) {
   const reducedMotion = useReducedMotion();
@@ -192,7 +188,7 @@ export function LandingPage() {
 
       <Reveal className="mx-auto w-full max-w-6xl px-4 pb-14">
         <div className="mb-6 max-w-2xl">
-          <p className="text-sm font-bold text-accent">DOUBLE DIAMOND</p>
+          <p className="text-sm font-bold text-accent">{strings.landing.stepsEyebrow}</p>
           <h2 className="mt-2 text-3xl font-black text-ink">
             {strings.landing.stepsTitle}
           </h2>
@@ -274,10 +270,10 @@ export function LandingPage() {
               <p className="mt-4 min-h-20 text-sm leading-7 text-muted">{persona.summary}</p>
               <div className="mt-5 flex flex-wrap gap-2 text-xs font-bold text-muted">
                 <span className="rounded-full bg-surface-soft px-3 py-1">
-                  {numberFormatter.format(persona.amount)} ريال
+                  {numberFormatter.format(persona.amount)} {strings.common.sarSuffix}
                 </span>
                 <span className="rounded-full bg-surface-soft px-3 py-1">
-                  {numberFormatter.format(persona.tenor)} شهر
+                  {numberFormatter.format(persona.tenor)} {strings.common.monthSuffix}
                 </span>
               </div>
             </Link>

@@ -12,10 +12,10 @@ before any audience.
 # Terminal 2
 .venv\Scripts\python.exe -m uvicorn api.main:app --port 8000
 # Terminal 3
-cd frontend; npm run dev
+cd frontend-v2; npm run dev
 ```
 
-Open http://127.0.0.1:3000 and http://127.0.0.1:3000/status in two tabs.
+Open http://127.0.0.1:3001 and http://127.0.0.1:3001/status in two tabs.
 Confirm the status page shows the service card green. Advisor chat needs
 `ANTHROPIC_API_KEY` in `.env` — verify "مزود النموذج اللغوي: مفعل" on /status.
 
@@ -97,5 +97,5 @@ Open `/status`: *"حتى صفحة الحالة صادقة — صفر من ثما
 |---|---|
 | Chat returns the amber "needs a provider key" message | Skip Act 4 chat, show the suggested questions instead, keep moving — everything else is offline-deterministic |
 | Journey stalls / server hiccup | Re-run the same persona — seeded data means identical results; `/status` tells you which service is down and the exact restart command |
-| Accidentally clicked a nav link mid-journey | Journey state resets by design — re-run the persona (10 seconds); do not apologize twice |
+| Accidentally clicked a nav link mid-journey | Use the stage navigation or browser back — v2 keeps the journey in session storage, including offers and decision state |
 | Question: "are these real bank rates?" | "لا — placeholder موسومة، والتحقق مهمة مراجعة بيانات قبل أي عرض عام" and show /status |
