@@ -43,17 +43,13 @@ explicit approval before executing (deletions, pushes, deployments, spending).
   (`mock_open_banking/`, :8100), optional Postgres persistence, LRU-bounded
   stores, offer-catalog validation gate, number-fidelity guardrail with
   flagged safe fallback, simulated OTP + application state machine.
-- **Frontend v1** (`frontend/`, :3000) — live site; working tree carries an
-  uncommitted rebrand to the official ATHAR identity (Midnight Navy `#0A1F44`,
-  Dune Gold `#C9A86A`, Sand White `#FAF7F2`, Ink `#111111`; Space Grotesk /
-  IBM Plex Sans Arabic / IBM Plex Mono).
-- **Frontend v2** (`frontend-v2/`, :3001, untracked) — from-scratch rebuild
-  per `docs/FRONTEND_V2_SPEC.md`: Next.js 15, Tailwind v4, Zustand +
-  sessionStorage, zod at the fetch boundary, stage-per-route journey, Vitest
-  unit tests, Playwright E2E (last run: passed). Built on the **old teal
-  palette** — predates the ATHAR identity.
-- **CI** — backend tests with Postgres service + v1 lint/build only. No
-  frontend unit tests, no E2E, nothing for v2.
+- **Frontend** (`frontend/`, :3000) — promoted rebuilt site with the official
+  ATHAR identity (Midnight Navy `#0A1F44`, Dune Gold `#C9A86A`, Sand White
+  `#FAF7F2`, Ink `#111111`; Space Grotesk / IBM Plex Sans Arabic / IBM Plex
+  Mono), Next.js 15, Tailwind v4, Zustand + sessionStorage, zod at the fetch
+  boundary, stage-per-route journey, Vitest unit tests, and Playwright E2E.
+- **CI** — backend tests with Postgres service plus frontend lint, typecheck,
+  unit tests, and build.
 - **Open external items** — offer rates 0/8 verified (`ready_for_public_demo`
   is false until fixed); SAMA DBR tiers + admin-fee cap not yet re-verified
   against the current Arabic rulebook text.
@@ -62,8 +58,8 @@ explicit approval before executing (deletions, pushes, deployments, spending).
 
 | # | Decision | Rationale |
 |---|---|---|
-| D1 | **v2 adopts the official ATHAR identity** (navy/gold/sand tokens + approved type stack), replacing its teal palette | README and the v1 working tree declare ATHAR the official identity; shipping v2 in teal would fork the brand |
-| D2 | **v2 is promoted to `frontend/`; v1 is retired** after the definition-of-done audit and one human demo rehearsal | v2 supersedes v1 on every axis (state survival, tests, validation, theming); two frontends is the largest organization debt |
+| D1 | **The rebuilt frontend adopts the official ATHAR identity** (navy/gold/sand tokens + approved type stack), replacing its earlier teal palette | README declares ATHAR the official identity; shipping a separate palette would fork the brand |
+| D2 | **The rebuilt frontend is promoted to `frontend/`; the prior implementation is retired behind a tag** after the definition-of-done audit and one human demo rehearsal | The rebuilt frontend supersedes the prior app on every axis (state survival, tests, validation, theming); two frontends is the largest organization debt |
 | D3 | **Python packages stay at repo root** (`core/`, `agents/`, `api/`, `mock_open_banking/`); organization comes from packaging metadata, a unified `tests/` tree, `scripts/`, and `docs/` — not from moving import roots | Moving packages rewrites every import, CI, run command, and doc for zero functional gain |
 | D4 | **Advisor moves from context-stuffing to a tool-use loop** | Cheaper tokens, engine-computed what-ifs mid-chat, and the flagship agentic capability |
 | D5 | **Deployment targets free/low-cost tiers** (frontend on Vercel, API + mock OB on one small host, Postgres on Neon), gated behind the honesty rules | Bootstrapped budget: everything except LLM usage stays ≈ $0–15/month; hard flag anything above $50/month |
@@ -72,62 +68,64 @@ explicit approval before executing (deletions, pushes, deployments, spending).
 
 ## Phase 0 — Land the in-flight work
 
-Everything below assumes a clean tree. Today's tree has ~15 modified files
-(ATHAR rebrand of v1 + docs) and three untracked paths (`frontend-v2/`,
-`docs/FRONTEND_V2_SPEC.md`, `frontend/src/components/site/AtharLogo.tsx`).
+Everything below was completed before the promotion. The tree now keeps one
+live frontend and the prior implementation is recoverable by tag.
 
 **Steps**
 
-1. Extend `.gitignore` for v2 build artifacts before anything is staged:
-   `frontend-v2/node_modules/`, `frontend-v2/.next/`, `frontend-v2/.env*`,
-   `frontend-v2/test-results/`, `frontend-v2/playwright-report/`,
-   `*.tsbuildinfo`. Confirm `frontend-v2/tsconfig.tsbuildinfo` and
-   `frontend-v2/test-results/` are not staged.
+1. Extend `.gitignore` for frontend build artifacts before anything is staged:
+   `frontend/node_modules/`, `frontend/.next/`, `frontend/.env*`,
+   `frontend/test-results/`, `frontend/playwright-report/`,
+   `*.tsbuildinfo`. Confirm TypeScript build info and Playwright artifacts are
+   not staged.
 2. Prepare three coherent commits (do not commit until approved **[OWNER]**):
-   a. v1 ATHAR identity + doc updates (the 15 modified files + `AtharLogo.tsx`).
+   a. ATHAR identity + doc updates.
    b. `docs/FRONTEND_V2_SPEC.md`.
-   c. `frontend-v2/` source (post-gitignore).
+   c. Rebuilt frontend source (post-gitignore).
 3. Run the full verify sweep on both frontends and the backend first.
 
 **Acceptance:** `git status` clean after the approved commits; no build
 artifacts, caches, or local tooling files tracked.
-**Verify:** backend + MCP pytest green; v1 `lint && build` green; v2
+**Verify:** backend + MCP pytest green; frontend
 `lint && typecheck && test && build` green.
 
 ---
 
-## Phase 1 — One frontend: finish, re-skin, and promote v2
+## Phase 1 — One frontend: finish, re-skin, and promote the rebuilt app
 
 **Steps**
 
-1. **ATHAR identity in v2 (D1).** Replace the teal token set in
-   `frontend-v2/src/app/globals.css` (light + dark) with the ATHAR palette:
+1. **ATHAR identity in the rebuilt frontend (D1).** Replace the teal token set in
+   `frontend/src/app/globals.css` (light + dark) with the ATHAR palette:
    brand = Midnight Navy `#0A1F44`, accent = Dune Gold `#C9A86A`, background =
    Sand White `#FAF7F2`, ink `#111111`; derive the dark set in the same hue
    families with contrast-checked lightness. Add Space Grotesk (headlines /
    English accents) and IBM Plex Mono (labels/data) via `next/font`, keeping
-   IBM Plex Sans Arabic as the body face. Port `AtharLogo.tsx` from v1.
+   IBM Plex Sans Arabic as the body face. Port `AtharLogo.tsx` from the prior
+   implementation.
    Status colors remain semantic (ok/warn/danger/accent). Both themes pass
    the existing component tests; contrast ≥ WCAG AA on tokens.
 2. **Definition-of-done audit** against `docs/FRONTEND_V2_SPEC.md` §7:
    physical-direction utility grep clean; unverified badge on every offer
    surface; journey survives navigation/back/reload; both themes on every
    route; reduced-motion respected; all strings in `strings.ts`; demo script
-   executable at :3001. Fix gaps found; record the audit as a checklist in
+   executable at :3000. Fix gaps found; record the audit as a checklist in
    the PR description (not a new doc).
 3. **Demo rehearsal [OWNER]** — human step: owner runs the three personas on
-   :3001 (`sara_strong` headroom, `ahmed_borderline` full application flow,
+   :3000 (`sara_strong` headroom, `ahmed_borderline` full application flow,
    `khalid_rejected` explained rejection + simulator flip). Proceed only on
    owner sign-off.
-4. **The swap [OWNER].** `frontend/` → deleted after tagging (`git tag
-   frontend-v1-final` on the pre-swap commit), `frontend-v2/` → `frontend/`.
+4. **The swap [OWNER].** The prior `frontend/` was deleted after tagging
+   (`git tag frontend-v1-final` on the pre-swap commit), then the rebuilt
+   source was promoted to `frontend/`.
    Update: dev port back to 3000 in `package.json`, CI `working-directory`
    and cache paths, `.gitignore` paths, README run instructions,
    `docs/FRONTEND_V2_SPEC.md` marked completed (one status line at top).
-   Grep the repo for `frontend-v2` and `3001` afterwards — zero live refs.
+   Grep the repo for retired v2 path and retired port references afterwards —
+   zero live refs.
 
 **Acceptance:** one frontend at `frontend/` on :3000 with all v2 gates green;
-v1 recoverable via tag; CI green on the swapped layout.
+the prior app recoverable via tag; CI green on the swapped layout.
 **Verify:** full sweep — backend pytest, MCP pytest, frontend
 `lint && typecheck && test && build`, `npx playwright test` with backend +
 mock OB running.
@@ -352,7 +350,7 @@ Each step is sized to land as one reviewable commit.
 | Risk | Mitigation |
 |---|---|
 | Brand re-skin regresses v2 contrast/tests | Token-only change + component tests + WCAG check in Phase 1 step 1 |
-| The swap breaks CI or local workflows | Grep gates for `frontend-v2`/`3001`/`core/tests`; tag before deleting; CI on a branch first |
+| The swap breaks CI or local workflows | Grep gates for retired frontend path, retired port, and `core/tests`; tag before deleting; CI on a branch first |
 | Tool-use loop weakens the guardrail | Allowed set is strictly context ∪ tool results; fallback path unchanged; fake-client tests cover the union logic |
 | Public URL before rates are verified | noindex + permanent demo framing + honest `/status`; `ready_for_public_demo` stays the gate |
 | LLM cost on a public endpoint | Prompt caching (3A.5), slim context, per-IP throttle, usage recorded per journey |

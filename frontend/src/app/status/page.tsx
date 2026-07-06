@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 
-import StatusDashboard from "../../components/status/StatusDashboard";
+import { StatusDashboard } from "@/components/status/StatusDashboard";
+import { strings } from "@/lib/strings";
 
 export const metadata: Metadata = {
-  title: "حالة أثر",
-  description:
-    "صفحة داخلية لأثر: صحة الخادم، نسبة التحقق من أسعار العروض، وحالة الإعدادات — دون أي قيم سرية.",
+  title: strings.status.metaTitle,
 };
 
 export default function StatusPage() {

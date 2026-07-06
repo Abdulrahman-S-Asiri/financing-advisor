@@ -5,8 +5,8 @@ This file records completed implementation phases, verification status, and the 
 ## Current Status
 
 - Branch: `master`
-- Latest documented phase: Official ATHAR visual identity
-- Main app flow: consent simulation, live journey events, financial dashboard, offers marketplace, what-if simulator, advisor chat, and simulated application tracker.
+- Latest documented phase: Frontend v2 promotion into `frontend/`
+- Main app flow: consent simulation, live journey events, financial dashboard, offers marketplace, what-if simulator, advisor chat, simulated application tracker, and route-persistent journey state.
 - Frontend identity: ATHAR / أثر is the official website identity, using Midnight Navy, Dune Gold, Sand White, Ink, the decision-dot mark, and the approved typography stack.
 - Local private files are ignored by `.gitignore`, including `.env`, `.venv/`, frontend env files, Next cache, and dependency folders.
 
@@ -45,9 +45,11 @@ This file records completed implementation phases, verification status, and the 
 | Backend/frontend contract test | Done | Payload key sets pinned to `core/tests/fixtures/frontend_contract_keys.json`, mirroring frontend types; drift fails with named keys. |
 | Guardrail fallback surfaced | Done | `guardrail_fallback` flag flows from the advisor through chat JSON and the SSE done frame; chat renders flagged safe replies as marked amber bubbles. |
 | Full website shell | Done | Landing page, shared nav + footer with demo disclaimer, IBM Plex Sans Arabic, Arabic error/404 pages. |
-| Journey route move | Done | Journey extracted to `features/journey/JourneyApp.tsx`, served at `/journey` with `?persona=` preselect; offer-detail back-link updated. |
+| Journey route split | Done | Journey now runs across `/journey`, `/journey/analysis`, `/journey/offers`, and `/journey/decision`, with `?persona=` preselect and offer-detail back-link state survival. |
 | Docs and status pages | Done | `/docs` explains engine-vs-narrator and demo limits; `/status` shows health, honest rate-verification coverage (0/8), OB provider, and session activity from live endpoints. |
 | Official ATHAR visual identity | Done | Frontend routes use ATHAR / أثر branding, navy/gold/sand/ink tokens, SVG logo variants, and Space Grotesk / IBM Plex Sans Arabic / IBM Plex Mono typography. |
+| Frontend v2 implementation | Done | Route-split journey, zod API boundaries, Zustand session persistence, UI kit tests, and Playwright smoke coverage are implemented. |
+| Frontend v2 promotion | Done | Rebuilt frontend is promoted to `frontend/` on :3000; the prior frontend is recoverable through the `frontend-v1-final` tag. |
 
 ## Recent Commits
 
@@ -76,7 +78,7 @@ This file records completed implementation phases, verification status, and the 
 
 Before closing each phase:
 
-- Run frontend lint and build.
+- Run frontend lint, typecheck, unit tests, and build.
 - Run backend tests.
 - Run Git whitespace checks.
 - Check local frontend and backend health when servers are running.
@@ -85,6 +87,6 @@ Before closing each phase:
 
 ## Next Planned Slice
 
-Continue end-to-end journey QA and verified lender offer review. Real Nafath,
-licensed Open Banking access, and lender submission remain external
-partnership/compliance work before production launch.
+Continue end-to-end journey QA on the promoted frontend and verified lender
+offer review. Real Nafath, licensed Open Banking access, and lender submission
+remain external partnership/compliance work before production launch.

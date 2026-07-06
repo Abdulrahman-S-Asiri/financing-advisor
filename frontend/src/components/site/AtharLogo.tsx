@@ -1,3 +1,5 @@
+import { strings } from "@/lib/strings";
+
 type AtharLogoProps = {
   variant?: "horizontal" | "arabic" | "mark";
   tone?: "default" | "reversed";
@@ -5,18 +7,38 @@ type AtharLogoProps = {
   className?: string;
 };
 
-function AtharMark({ tone }: { tone: "default" | "reversed" }) {
-  const ring = tone === "reversed" ? "rgba(250,247,242,0.72)" : "rgba(10,31,68,0.62)";
-  const dot = "var(--athar-gold)";
+const sizeClasses = {
+  sm: {
+    wrapper: "gap-2",
+    mark: "size-8",
+    word: "text-[0.95rem]",
+    sub: "text-[0.58rem]",
+  },
+  md: {
+    wrapper: "gap-3",
+    mark: "size-10",
+    word: "text-lg",
+    sub: "text-[0.64rem]",
+  },
+  lg: {
+    wrapper: "gap-4",
+    mark: "size-14",
+    word: "text-2xl",
+    sub: "text-xs",
+  },
+};
+
+function AtharMark({ tone, className }: { tone: "default" | "reversed"; className: string }) {
+  const ring = tone === "reversed" ? "rgba(250,247,242,0.78)" : "var(--brand)";
 
   return (
     <svg
       aria-hidden="true"
-      className="atharLogoMark"
+      className={className}
       focusable="false"
       viewBox="0 0 64 64"
     >
-      <circle cx="32" cy="32" r="7" fill={dot} />
+      <circle cx="32" cy="32" r="7" fill="var(--athar-gold)" />
       <circle cx="32" cy="32" fill="none" r="16" stroke={ring} strokeWidth="3" />
       <path
         d="M13 32a19 19 0 0 1 38 0"
@@ -28,62 +50,57 @@ function AtharMark({ tone }: { tone: "default" | "reversed" }) {
       <path
         d="M51 32a19 19 0 0 1-38 0"
         fill="none"
+        opacity="0.72"
         stroke={ring}
         strokeLinecap="round"
         strokeWidth="3"
-        opacity="0.72"
       />
       <path
         d="M8 24a30 30 0 0 1 48 24"
         fill="none"
+        opacity="0.54"
         stroke={ring}
         strokeLinecap="round"
         strokeWidth="3"
-        opacity="0.54"
       />
     </svg>
   );
 }
 
-export default function AtharLogo({
+export function AtharLogo({
   className = "",
   size = "md",
   tone = "default",
-  variant = "horizontal",
+  variant = "arabic",
 }: AtharLogoProps) {
-  const classNames = [
-    "atharLogo",
-    `atharLogo-${variant}`,
-    `atharLogo-${tone}`,
-    `atharLogo-${size}`,
-    className,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const classes = sizeClasses[size];
+  const textTone = tone === "reversed" ? "text-sand" : "text-ink";
+  const subTone = tone === "reversed" ? "text-sand/70" : "text-muted";
 
   if (variant === "mark") {
     return (
-      <span aria-label="أثر" className={classNames}>
-        <AtharMark tone={tone} />
+      <span aria-label={strings.logo.ariaMark} className={`inline-flex items-center ${className}`}>
+        <AtharMark className={classes.mark} tone={tone} />
       </span>
     );
   }
 
   return (
-    <span aria-label="أثر - ATHAR" className={classNames}>
-      <AtharMark tone={tone} />
-      <span className="atharLogoWordmark">
-        {variant === "arabic" ? (
-          <>
-            <strong lang="ar">أثر</strong>
-            <small>مستشار تمويل وكيلي</small>
-          </>
-        ) : (
-          <>
-            <strong lang="en">ATHAR</strong>
-            <small>AGENTIC FINANCING ADVISOR</small>
-          </>
-        )}
+    <span
+      aria-label={strings.logo.ariaLockup}
+      className={`inline-flex items-center ${classes.wrapper} ${className}`}
+    >
+      <AtharMark className={classes.mark} tone={tone} />
+      <span className="grid leading-none">
+        <strong
+          className={`${classes.word} font-black tracking-normal ${textTone}`}
+          lang={variant === "horizontal" ? "en" : "ar"}
+        >
+          {variant === "horizontal" ? strings.logo.englishWordmark : strings.logo.arabicWordmark}
+        </strong>
+        <small className={`mt-1 font-semibold tracking-normal ${classes.sub} ${subTone}`}>
+          {variant === "horizontal" ? strings.logo.englishDescriptor : strings.logo.arabicDescriptor}
+        </small>
       </span>
     </span>
   );

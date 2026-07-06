@@ -42,9 +42,12 @@ A complete consumer-facing website (Arabic-first, RTL), currently demo-grade:
 ## 3. Architecture
 
 ```
-frontend/  Next.js App Router (:3000), ATHAR plain-CSS tokens, Arabic-first RTL
+frontend/  Next.js App Router (:3000), ATHAR tokens, Tailwind v4, Arabic-first RTL
    |   /            landing (static)
-   |   /journey     the journey app (client component, ?persona= preselect)
+   |   /journey     consent + persona/request form (?persona= preselect)
+   |   /journey/analysis   live event timeline + financial dashboard
+   |   /journey/offers     ranked offers + filters + compare + simulator
+   |   /journey/decision   recommendation + simulated application + chat
    |   /journeys/[journeyId]/offers/[offerId]   offer detail
    |   /docs        honest architecture + limitations
    |   /status      internal status dashboard
@@ -81,17 +84,19 @@ stdlib with no I/O — callers read files and pass parsed payloads in.
 | Route | Type | Content / notes |
 |---|---|---|
 | `/` | static | Hero + honesty strip, 4-step how-it-works, 3 trust cards, persona cards → journey, CTA band |
-| `/journey` | client | The full ATHAR decision journey (`features/journey/JourneyApp.tsx`); `?persona=` seeds the form |
+| `/journey` | client | Consent, persona selector, and financing request form; `?persona=` seeds the form |
+| `/journey/analysis` | client | Live Arabic event timeline and financial dashboard |
+| `/journey/offers` | client | Ranked offers, filters, comparison, and simulator |
+| `/journey/decision` | client | Recommendation, simulated application tracker, and advisor chat |
 | `/journeys/[jid]/offers/[oid]` | client | Cost breakdown, DBR trace, month-by-month schedule, source link |
 | `/docs` | static | Idea, engine-vs-narrator, data path, demo limitations, verification meaning |
 | `/status` | client | healthz + offers/verification + OB status + analytics cards; persona shortcuts; refresh; server-down guidance |
 | `error.tsx` / `not-found.tsx` | — | Arabic fallbacks with recovery links |
 
-Site shell: `src/components/site/` (AtharLogo, SiteNav with mobile menu + demo pill,
-SiteFooter with disclaimer). New CSS lives in one delimited block at the end
-of `globals.css` (`siteNav*`, `landing*`, `docs*`, `status*` prefixes) using
-the ATHAR identity tokens. Journey internals were intentionally not restructured —
-journey state is component-local and resets on navigation (see §16).
+Site shell: `src/components/site/` (AtharLogo, NavBar with mobile menu + demo
+pill, Footer with disclaimer). Journey state is persisted in session storage
+so route changes, offer-detail round-trips, and reloads keep the active demo
+state.
 
 ## 6. Backend APIs
 
@@ -172,10 +177,10 @@ setup and the tool list live in `mcp_server/README.md` and (local-only)
   ASGI (no ports, no API key), catalog gate, store eviction, healthz,
   contract, payload-size regressions. All new endpoints get tests here.
 - `python -m pytest mcp_server/tests -q` — tool validation and allowlist.
-- `cd frontend && npm run lint && npm run build` — the frontend gate (no JS
-  test framework yet; see §15).
-- CI (GitHub Actions): backend tests with Postgres service + frontend
-  lint/build. Keep every phase green before moving on.
+- `cd frontend && npm run lint && npm run typecheck && npm run test && npm run build`
+  — the frontend gate.
+- CI (GitHub Actions): backend tests with Postgres service + frontend lint,
+  typecheck, unit tests, and build. Keep every phase green before moving on.
 
 ## 12. Security rules
 
@@ -195,7 +200,8 @@ setup and the tool list live in `mcp_server/README.md` and (local-only)
 - [x] Full journey works end-to-end in the browser via `/journey` (verified).
 - [x] Landing, docs, status, error/404 pages live with nav + footer.
 - [x] Persona shortcuts pre-seed the journey form.
-- [x] All checks green: backend tests, MCP tests, frontend lint + build.
+- [x] All checks green: backend tests, MCP tests, frontend lint, typecheck,
+      unit tests, and build.
 - [x] Guardrail fallback visibly marked in chat.
 - [ ] **Offer rates verified from official lender pages (0/8 today)** — the
       one open external item; `/status` and `GET /offers/verification` track
@@ -212,10 +218,10 @@ setup and the tool list live in `mcp_server/README.md` and (local-only)
 | ✅ | Engine + agents + API + mock OB | Deterministic core, journey pipeline + SSE, advisor guardrail, simulated applications, optional Postgres |
 | ✅ | Platform hardening | Catalog validation gate, LRU-bounded stores, `/healthz`, backend↔frontend contract test, guardrail percent fix + fallback flag |
 | ✅ | Full website | Landing + nav/footer + `/journey` move + persona preselect + `/docs` + `/status` + error/404 + Arabic webfont |
+| ✅ | Frontend v2 promotion | Route-split journey, session storage persistence, zod response validation, UI tests, and Playwright smoke coverage promoted into `frontend/` |
 | ⏳ | Data review (external) | Replace placeholder rates from official pages (target ≥15 offers), fill `source_url`/`retrieved_at`, flip `rate_verified` only with a real source |
 | ⏳ | Regulatory verification (external) | Arabic rulebook check of DBR tiers, tenor cap, fee cap |
 | 🔜 | Advisor tool-use loop | Engine-computed what-ifs via tool calls instead of context stuffing |
-| 🔜 | Journey state store | Stage-split or shared store so navigation cannot drop an in-flight journey |
 | 🔜 | Production edges | Nafath identity, licensed TPP, lender submission, hosting — all external-partner work |
 
 ## 15. Priority table (next work, ranked)
@@ -224,18 +230,17 @@ setup and the tool list live in `mcp_server/README.md` and (local-only)
 |---|---|---|---|
 | 1 | Verified offers data pass | Unblocks public demo; everything else is ready | external, days |
 | 2 | Advisor tool-use loop | Cheaper tokens, engine-computed what-ifs | L |
-| 3 | Journey state survives navigation (store/sessionStorage) | Removes the demo's one sharp edge | M |
-| 4 | Golden-journey snapshot tests per persona | Locks the demo output | S–M |
-| 5 | Frontend E2E smoke (Playwright) over the demo spine | Catches wiring breaks pre-demo | M |
-| 6 | LLM transaction categorizer + labeled dataset | Flagship agentic capability | M–L |
-| 7 | Structured logging + journey-scoped request IDs | Observability + audit trail | M |
+| 3 | Golden-journey snapshot tests per persona | Locks the demo output | S–M |
+| 4 | Expand CI to live-service Playwright gate when services are available | Catches wiring breaks pre-demo | M |
+| 5 | LLM transaction categorizer + labeled dataset | Flagship agentic capability | M–L |
+| 6 | Structured logging + journey-scoped request IDs | Observability + audit trail | M |
 
 ## 16. Known risks
 
 | Risk | State / mitigation |
 |---|---|
 | Placeholder rates leak into screenshots | `rate_verified` flag on every surface; `/status` shows honest 0/8; `ready_for_public_demo` gate |
-| Site nav can drop an in-flight journey (state is component-local) | Accepted for now; priority #3 fixes it; personas make re-runs cheap and deterministic |
+| Journey state persistence can drift from backend contracts | zod schemas validate every response; Playwright covers offer-detail round-trip state survival |
 | SAMA rules drift from the current Arabic text | Rules isolated in `core/dbr.py` with rulebook citations; external verification pending |
 | Webfont fetch at build time needs network | CI has it; system-font stack remains the fallback; `next/font/local` is the offline escape hatch |
 | Analytics under LRU eviction shows recent-only activity | Documented on the endpoint and the status card label |
@@ -249,12 +254,13 @@ journey orchestrator with Arabic SSE events · guardrailed advisor (percent
 equivalence, retry, flagged safe fallback) · simulated OTP + application state
 machine · optional Postgres persistence · LRU-bounded stores · offer catalog
 validation gate · `/healthz` · backend↔frontend contract test · full website
-(landing, journey move + preselect, docs, status, error/404, nav/footer,
-Arabic webfont) · MCP dev tooling with tests · CI.
+(landing, route-split journey, persona preselect, docs, status, error/404,
+nav/footer, Arabic webfont) · frontend unit tests and Playwright smoke
+coverage · MCP dev tooling with tests · CI.
 
 **Not done (external / future):** verified offer rates (0/8 — the blocking
 item for public demo) · SAMA text re-verification · advisor tool-use loop ·
-transaction categorizer · journey state store · real identity (Nafath),
+transaction categorizer · real identity (Nafath),
 licensed Open Banking, lender APIs · hosting/deployment · approval-likelihood
 modeling (needs real consented outcomes).
 

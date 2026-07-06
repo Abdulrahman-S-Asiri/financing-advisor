@@ -1,6 +1,9 @@
 # أثر (Athar) — Frontend v2 Build Specification
 
-A complete, from-scratch rebuild of the consumer website in `frontend-v2/`.
+Status: completed and promoted to the live `frontend/` app in Phase 1 Step 4.
+
+A complete, from-scratch rebuild of the consumer website, now living in
+`frontend/`.
 This document is the single source of truth for the build: follow the steps
 **in order**, satisfy each step's acceptance criteria before moving on, and
 never violate the ground rules.
@@ -25,14 +28,12 @@ never violate the ground rules.
    true`) render visually distinct with the badge `رد آمن — تم حجب أرقام غير
    مدعومة`. No fake logos, testimonials, approval promises, or invented
    statistics anywhere.
-4. **The backend contract is frozen.** Do not modify anything outside
-   `frontend-v2/`. The API, its payload shapes, and the SSE framing are fixed
+4. **The backend contract is frozen.** Do not modify backend/API contracts for
+   frontend presentation work. The API, its payload shapes, and the SSE framing are fixed
    (section 4). If something seems missing from the API, work around it in the
    client or leave a `TODO` note — do not touch backend code.
-5. **`frontend/` (v1) is the live fallback — never edit it.** v2 is built in
-   parallel in `frontend-v2/`, dev server on **port 3001**. v1 remains the
-   behavioral reference: when this spec says "match v1 behavior", open the
-   referenced v1 file and replicate its logic.
+5. **`frontend/` is the live app.** The pre-swap v1 implementation is preserved
+   by the `frontend-v1-final` Git tag. Local development uses port 3000.
 6. **Green at every step.** After each step: `npm run lint`, `npx tsc
    --noEmit`, and `npm run build` must pass, plus that step's verify commands.
    Never proceed with a broken tree. (Do not run `npm run build` while the dev
@@ -58,7 +59,7 @@ Carry over unchanged (content, not code): all Arabic copy, the seeded persona
 cards (أحمد حالة حدية / سارة ملف قوي / خالد رفض مفسر), the Double Diamond
 stage narrative (اكتشف/حدد/طوّر/سلّم), the honesty strip and trust sections,
 the docs/limitations page content, the debt-payment coming-soon page content,
-and the أثر brand + teal palette.
+and the official ATHAR navy/gold/sand/ink identity.
 
 ## 2. Target stack
 
@@ -81,11 +82,11 @@ No other runtime dependencies without a written justification comment in
 
 ### 3.1 Tokens (define as CSS variables in `globals.css`, map into Tailwind theme)
 
-Light (carry v1 palette): `--background #f6f7f9`, `--surface #ffffff`,
-`--surface-soft #eef6f4`, `--ink #18201e`, `--muted #64706d`, `--line #dbe3e0`,
-`--brand #0e766e` (teal), `--brand-strong #075c55`, `--accent #2756a3` (blue),
-`--ok #198754`, `--warn #b26b00`, `--danger #b42318`, shadow
-`0 18px 45px rgba(24,32,30,0.08)`.
+Light: `--background #FAF7F2`, `--surface #ffffff`,
+`--surface-soft #f2eadc`, `--ink #111111`, `--muted #5f5a51`, `--line #e5dccb`,
+`--brand #0A1F44` (Midnight Navy), `--brand-strong #061631`,
+`--accent #C9A86A` (Dune Gold), `--ok #198754`, `--warn #b26b00`,
+`--danger #b42318`, shadow `0 18px 45px rgba(10,31,68,0.10)`.
 
 Dark: derive a full set (`--background #0f1513`-range, surfaces slightly
 lighter, ink near-white, same hue family for brand/status with raised
@@ -139,8 +140,8 @@ hint — surface `detail` verbatim.
 
 ### 4.3 Payload shapes — source of truth
 
-Copy the TypeScript types from `frontend/src/features/journey/types.ts` into
-`frontend-v2/src/lib/schemas.ts` as zod schemas (`JourneyResponse`,
+The shared runtime contracts live in
+`frontend/src/lib/schemas.ts` as zod schemas (`JourneyResponse`,
 `OfferMatch`, `AgentEvent`, `FinancialHealth`, `CostBreakdown`, `DbrDecision`,
 `SimulationResponse`, `ApplicationRecord`, chat frames). The backend pins
 these key sets in `core/tests/fixtures/frontend_contract_keys.json` — the zod
@@ -192,9 +193,9 @@ journey.
 Execute in order. Each step lists Deliverables / Acceptance / Verify.
 
 ### Step 0 — Scaffold
-Create `frontend-v2/` with create-next-app (TS, App Router, no src-dir
+Create the rebuilt `frontend/` app with create-next-app (TS, App Router, no src-dir
 question — use `src/`), add Tailwind v4, zustand, zod, framer-motion, vitest,
-@testing-library/react, playwright. Configure: port 3001 (`dev` script), the
+@testing-library/react, playwright. Configure: port 3000 (`dev` script), the
 `/backend` rewrite (4.1), `@/*` alias, strict TS, IBM Plex Sans Arabic,
 `<html lang="ar" dir="rtl">`.
 **Acceptance:** dev server renders an RTL placeholder page in the Plex font.
@@ -317,16 +318,14 @@ test && npx playwright test` — all green with backend + mock OB running.
 - [ ] Journey state survives: navigation, back button, reload.
 - [ ] Both themes verified on every route; reduced-motion respected.
 - [ ] All strings from `strings.ts`; no hardcoded English UI text.
-- [ ] v1 untouched (`git status` shows changes only in `frontend-v2/` and this
-      spec's checkboxes).
-- [ ] The demo script (docs/DEMO_SCRIPT.md) is executable on v2 at :3001.
+- [x] Pre-swap v1 is recoverable through the `frontend-v1-final` Git tag.
+- [x] The demo script (docs/DEMO_SCRIPT.md) is executable on the promoted
+      frontend at :3000.
 
 ## 8. Risks and fallback
 
-- **v1 is the demo fallback.** It stays runnable on :3000 until v2 passes the
-  full definition of done plus one human demo rehearsal; only then swap
-  (rename folders, update CI workflow's `working-directory`, re-point launch
-  config) — the swap is a separate, explicit decision.
+- **v1 fallback is tagged.** The pre-swap implementation is recoverable through
+  `frontend-v1-final`; the live app is the promoted rebuilt frontend.
 - **Contract drift**: if any zod schema rejects a real backend response, the
   schema is wrong, not the backend — fix the schema against
   `frontend_contract_keys.json`.

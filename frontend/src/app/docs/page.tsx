@@ -1,109 +1,71 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { Card, SectionHeading } from "@/components/ui";
+import { strings } from "@/lib/strings";
+
 export const metadata: Metadata = {
-  title: "كيف يعمل",
-  description:
-    "بنية أثر: محرك حسابي حتمي يحسب، ونموذج لغوي يشرح — مع حدود العرض التجريبي بصراحة.",
+  title: strings.docs.metaTitle,
 };
 
 export default function DocsPage() {
   return (
-    <main className="sitePage docsPage">
-      <h1>كيف يعمل أثر</h1>
-      <p className="docsLead">
-        هذه الصفحة تشرح البنية بصراحة كاملة: ما الذي يُحسب، ومن يشرح، وما حدود
-        هذا العرض التجريبي.
-      </p>
+    <main className="mx-auto w-full max-w-5xl px-4 py-10">
+      <header className="mb-8">
+        <h1 className="text-4xl font-black text-ink">{strings.docs.title}</h1>
+        <p className="mt-3 max-w-3xl text-sm leading-7 text-muted">{strings.docs.lead}</p>
+      </header>
 
-      <section className="docsSection">
-        <h2>الفكرة</h2>
-        <p>
-          أثر ليس جدول مقارنة آخر. المستشار يقرأ الوضع المالي الفعلي من حركة
-          الحساب، يطبق قواعد الملاءة للأفراد، يختبر كل عرض تمويلي متاح،
-          ويشرح النتيجة — بما فيها الرفض — خطوة بخطوة عبر رحلة من أربع مراحل:
-          اكتشف، حدد، طوّر، سلّم.
-        </p>
-      </section>
+      <div className="space-y-5">
+        <Card>
+          <SectionHeading title={strings.docs.idea.title} />
+          <p className="text-sm leading-7 text-muted">{strings.docs.idea.text}</p>
+        </Card>
 
-      <section className="docsSection">
-        <h2>من يحسب ومن يشرح</h2>
-        <p>
-          القاعدة غير القابلة للتفاوض: <strong>المحرك يحسب؛ النموذج يشرح.</strong>
-        </p>
-        <ul>
-          <li>
-            كل رقم — القسط، معدل النسبة الفعلي، نسب الاستقطاع، سقف الاستطاعة —
-            يأتي من دوال حسابية حتمية مُغطاة باختبارات آلية.
-          </li>
-          <li>
-            المستشار المحادثاتي يستلم نتائج المحرك ويشرحها فقط. حارس رقمي
-            يفحص كل رد: أي رقم لا يوجد في نتائج المحرك يُحجب الرد ويُعاد
-            توليده، وإن تكرر يظهر «رد آمن» معلَّم بوضوح في المحادثة.
-          </li>
-          <li>
-            الأهلية قرار المحرك وحده؛ النموذج لا يستطيع قلب نتيجة أو اختراع
-            شرط.
-          </li>
-        </ul>
-      </section>
+        <Card>
+          <SectionHeading title={strings.docs.engine.title} />
+          <p className="text-sm leading-7 text-muted">{strings.docs.engine.text}</p>
+        </Card>
 
-      <section className="docsSection">
-        <h2>مسار البيانات</h2>
-        <div className="docsFlow" aria-label="مسار البيانات">
-          <span className="docsFlowBox">خدمة مصرفية مفتوحة (محاكاة)</span>
-          <span className="docsFlowArrow">←</span>
-          <span className="docsFlowBox">استخراج الملف المالي</span>
-          <span className="docsFlowArrow">←</span>
-          <span className="docsFlowBox">المطابقة والتسعير</span>
-          <span className="docsFlowArrow">←</span>
-          <span className="docsFlowBox">عروض مرتبة بأسبابها</span>
-        </div>
-        <p>
-          الخدمة المصرفية الحالية محاكاة بنفس شكل واجهات حسابات المعلومات،
-          بشخصيات مثبتة تعطي النتائج نفسها في كل تشغيل. استبدالها بمزود مرخص
-          لاحقاً هو تغيير عنوان اتصال، لا إعادة بناء.
-        </p>
-      </section>
+        <Card>
+          <SectionHeading title={strings.docs.data.title} />
+          <ol
+            aria-label={strings.docs.flowAria}
+            className="mb-4 grid gap-2 md:grid-cols-4"
+          >
+            {strings.docs.flow.map((step) => (
+              <li
+                key={step}
+                className="rounded-xl border border-line bg-surface-soft p-3 text-sm font-bold text-ink"
+              >
+                {step}
+              </li>
+            ))}
+          </ol>
+          <p className="text-sm leading-7 text-muted">{strings.docs.data.text}</p>
+        </Card>
 
-      <section className="docsSection">
-        <h2>حدود العرض التجريبي</h2>
-        <ul>
-          <li>البيانات البنكية محاكاة بالكامل — لا يتصل بأي حساب حقيقي.</li>
-          <li>
-            كل أسعار العروض الحالية بيانات مبدئية غير مؤكدة، وتحمل وسماً
-            ظاهراً حتى تُراجع من الصفحات الرسمية للجهات التمويلية.
-          </li>
-          <li>التحقق برمز الجوال محاكاة محلية، وليس تحققاً حقيقياً من الهوية.</li>
-          <li>
-            تقديم الطلب محاكاة كاملة (مسودة ← إرسال ← مراجعة ← نتيجة) دون أي
-            تكامل فعلي مع جهة تمويل.
-          </li>
-          <li>
-            سداد المديونية ميزة قادمة فقط؛ لا توجد حالياً أي عملية دفع أو تحويل
-            أموال داخل المنصة.
-          </li>
-          <li>
-            قيم القواعد التنظيمية المشفرة في المحرك تحتاج تحققاً خارجياً من
-            النص العربي النافذ قبل أي استخدام عام.
-          </li>
-          <li>
-            المنصة ليست جهة تمويل وليست مرخصة — القرار النهائي دائماً للجهة
-            التمويلية، وهذا العرض لا يُعد استشارة مالية.
-          </li>
-        </ul>
-      </section>
+        <Card>
+          <SectionHeading title={strings.docs.limits.title} />
+          <ul className="space-y-2">
+            {strings.docs.limits.items.map((item) => (
+              <li key={item} className="rounded-xl bg-danger/5 p-3 text-sm leading-7 text-muted">
+                {item}
+              </li>
+            ))}
+          </ul>
+        </Card>
 
-      <section className="docsSection">
-        <h2>الشفافية والتحقق</h2>
-        <p>
-          وسم «سعر مؤكد» يعني أن الرقم أُخذ من الصفحة الرسمية المنشورة للجهة
-          مع رابط المصدر وتاريخ الاسترجاع، ويُعد قديماً بعد ثلاثين يوماً.
-          يمكنك متابعة نسبة التحقق الحالية للعروض لحظياً في{" "}
-          <Link href="/status">صفحة الحالة</Link> — وهي تعرض الرقم الصادق حتى
-          عندما يكون صفراً.
-        </p>
-      </section>
+        <Card>
+          <SectionHeading title={strings.docs.verification.title} />
+          <p className="text-sm leading-7 text-muted">
+            {strings.docs.verification.text}{" "}
+            <Link href="/status" className="font-bold text-brand dark:text-accent">
+              {strings.docs.verification.link}
+            </Link>
+          </p>
+        </Card>
+      </div>
     </main>
   );
 }

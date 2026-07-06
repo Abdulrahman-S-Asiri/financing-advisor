@@ -7,13 +7,8 @@ frontend/.next/
 frontend/node_modules/
 frontend/out/
 frontend/.env*
-
-frontend-v2/.next/
-frontend-v2/node_modules/
-frontend-v2/out/
-frontend-v2/.env*
-frontend-v2/test-results/
-frontend-v2/playwright-report/
+frontend/test-results/
+frontend/playwright-report/
 *.tsbuildinfo
 
 # Local assistant/tooling config — private by policy, never published.

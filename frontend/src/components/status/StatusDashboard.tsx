@@ -3,72 +3,51 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import { personas } from "../../features/journey/data";
-
-type Healthz = {
-  status: string;
-  version: string;
-  offers_loaded: number;
-  catalog_valid: boolean;
-  postgres_enabled: boolean;
-  llm_configured: boolean;
-  open_banking_provider: string;
-};
-
-type VerificationIssue = {
-  offer_id: string | null;
-  severity: string;
-  code: string;
-  message: string;
-};
-
-type Verification = {
-  total_offers: number;
-  verified_count: number;
-  unverified_count: number;
-  missing_source_count: number;
-  stale_verified_count: number;
-  target_min_offers: number;
-  ready_for_public_demo: boolean;
-  issues: VerificationIssue[];
-};
-
-type OpenBankingStatus = {
-  provider: string;
-  mock_mode: boolean;
-};
-
-type Analytics = {
-  journeys: { total: number; with_path_forward: number };
-  applications: { total: number; status_counts: Record<string, number> };
-};
+import { Badge, Button, Card, ErrorState, SectionHeading, Skeleton } from "@/components/ui";
+import { personas } from "@/lib/data";
+import { api } from "@/lib/api";
+import type {
+  AnalyticsOverview,
+  Healthz,
+  OfferVerification,
+  OpenBankingStatus,
+  VerificationIssue,
+} from "@/lib/schemas";
+import { strings } from "@/lib/strings";
 
 type Fetched<T> = { state: "loading" } | { state: "error" } | { state: "ok"; data: T };
 
-async function fetchJson<T>(path: string): Promise<T> {
-  const response = await fetch(path);
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-  return (await response.json()) as T;
+function boolBadge(value: boolean, warnWhenOff = false) {
+  const tone = value ? "ok" : warnWhenOff ? "warn" : "neutral";
+  return <Badge tone={tone}>{value ? strings.status.enabled : strings.status.disabled}</Badge>;
 }
 
-function Bool({ value, warnWhenOff = false }: { value: boolean; warnWhenOff?: boolean }) {
-  const className = value
-    ? "statusBool statusBoolOn"
-    : `statusBool ${warnWhenOff ? "statusBoolWarn" : "statusBoolOff"}`;
-  return <span className={className}>{value ? "مفعل" : "غير مفعل"}</span>;
-}
-
-function CardState({ result }: { result: { state: "loading" } | { state: "error" } }) {
+function LoadingRows() {
   return (
-    <p className="emptyText">
-      {result.state === "loading" ? "جاري التحميل..." : "تعذر تحميل هذه البيانات."}
-    </p>
+    <div className="space-y-3">
+      <Skeleton className="h-5 w-2/3" />
+      <Skeleton className="h-5 w-1/2" />
+      <Skeleton className="h-5 w-3/4" />
+    </div>
   );
 }
 
-function groupIssues(issues: VerificationIssue[]): Array<[string, number]> {
+function CardState<T>({ result }: { result: Fetched<T> }) {
+  if (result.state === "loading") {
+    return (
+      <div>
+        <p className="sr-only">{strings.status.loadingCard}</p>
+        <LoadingRows />
+      </div>
+    );
+  }
+  if (result.state === "error") {
+    return <ErrorState message={strings.status.cardError} />;
+  }
+  return null;
+}
+
+function issueCounts(issues: VerificationIssue[]) {
   const counts = new Map<string, number>();
   for (const issue of issues) {
     counts.set(issue.code, (counts.get(issue.code) ?? 0) + 1);
@@ -76,13 +55,151 @@ function groupIssues(issues: VerificationIssue[]): Array<[string, number]> {
   return [...counts.entries()];
 }
 
-export default function StatusDashboard() {
+function ServiceCard({ health }: { health: Fetched<Healthz> }) {
+  return (
+    <Card>
+      <SectionHeading title={strings.status.serviceTitle} />
+      {health.state !== "ok" ? (
+        <CardState result={health} />
+      ) : (
+        <dl className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-sm text-muted">{strings.status.version}</dt>
+            <dd className="text-sm font-bold text-ink">{health.data.version}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-sm text-muted">{strings.status.offersLoaded}</dt>
+            <dd className="text-sm font-bold text-ink">{health.data.offers_loaded}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-sm text-muted">{strings.status.catalogValid}</dt>
+            <dd>{boolBadge(health.data.catalog_valid, true)}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-sm text-muted">{strings.status.postgres}</dt>
+            <dd>{boolBadge(health.data.postgres_enabled)}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-sm text-muted">{strings.status.llm}</dt>
+            <dd>{boolBadge(health.data.llm_configured)}</dd>
+          </div>
+          <p className="border-t border-line pt-3 text-xs leading-6 text-muted">
+            {strings.status.secretNote}
+          </p>
+        </dl>
+      )}
+    </Card>
+  );
+}
+
+function VerificationCard({ verification }: { verification: Fetched<OfferVerification> }) {
+  return (
+    <Card>
+      <SectionHeading title={strings.status.verificationTitle} />
+      {verification.state !== "ok" ? (
+        <CardState result={verification} />
+      ) : (
+        <dl className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-sm text-muted">{strings.status.verifiedOf}</dt>
+            <dd className="text-sm font-black text-ink">
+              {verification.data.verified_count} / {verification.data.total_offers}
+            </dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-sm text-muted">{strings.status.targetMinimum}</dt>
+            <dd className="text-sm font-bold text-ink">
+              {verification.data.target_min_offers}
+            </dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-sm text-muted">{strings.status.readyForDemo}</dt>
+            <dd>{boolBadge(verification.data.ready_for_public_demo, true)}</dd>
+          </div>
+          {verification.data.issues.length > 0 && (
+            <div className="border-t border-line pt-3">
+              <dt className="text-xs font-bold text-muted">{strings.status.issues}</dt>
+              <dd className="mt-2 flex flex-wrap gap-2">
+                {issueCounts(verification.data.issues).map(([code, count]) => (
+                  <Badge key={code} tone="warn">
+                    {code} × {count}
+                  </Badge>
+                ))}
+              </dd>
+            </div>
+          )}
+        </dl>
+      )}
+    </Card>
+  );
+}
+
+function OpenBankingCard({ openBanking }: { openBanking: Fetched<OpenBankingStatus> }) {
+  return (
+    <Card>
+      <SectionHeading title={strings.status.openBankingTitle} />
+      {openBanking.state !== "ok" ? (
+        <CardState result={openBanking} />
+      ) : (
+        <dl className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-sm text-muted">{strings.status.provider}</dt>
+            <dd className="text-sm font-bold text-ink">{openBanking.data.provider}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-sm text-muted">{strings.status.mockMode}</dt>
+            <dd>{boolBadge(openBanking.data.mock_mode)}</dd>
+          </div>
+        </dl>
+      )}
+    </Card>
+  );
+}
+
+function AnalyticsCard({ analytics }: { analytics: Fetched<AnalyticsOverview> }) {
+  return (
+    <Card>
+      <SectionHeading title={strings.status.activityTitle} />
+      {analytics.state !== "ok" ? (
+        <CardState result={analytics} />
+      ) : (
+        <dl className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-sm text-muted">{strings.status.journeysTotal}</dt>
+            <dd className="text-sm font-bold text-ink">{analytics.data.journeys.total}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-sm text-muted">{strings.status.withPathForward}</dt>
+            <dd className="text-sm font-bold text-ink">
+              {analytics.data.journeys.with_path_forward}
+            </dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-sm text-muted">{strings.status.applicationsTotal}</dt>
+            <dd className="text-sm font-bold text-ink">{analytics.data.applications.total}</dd>
+          </div>
+          <p className="border-t border-line pt-3 text-xs leading-6 text-muted">
+            {strings.status.activityNote}
+          </p>
+        </dl>
+      )}
+    </Card>
+  );
+}
+
+export function StatusDashboard() {
   const [health, setHealth] = useState<Fetched<Healthz>>({ state: "loading" });
-  const [verification, setVerification] = useState<Fetched<Verification>>({ state: "loading" });
-  const [openBanking, setOpenBanking] = useState<Fetched<OpenBankingStatus>>({ state: "loading" });
-  const [analytics, setAnalytics] = useState<Fetched<Analytics>>({ state: "loading" });
-  const [refreshedAt, setRefreshedAt] = useState<string>("");
+  const [verification, setVerification] = useState<Fetched<OfferVerification>>({
+    state: "loading",
+  });
+  const [openBanking, setOpenBanking] = useState<Fetched<OpenBankingStatus>>({
+    state: "loading",
+  });
+  const [analytics, setAnalytics] = useState<Fetched<AnalyticsOverview>>({
+    state: "loading",
+  });
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshedAt, setRefreshedAt] = useState("");
 
   const load = useCallback(async () => {
     setIsRefreshing(true);
@@ -91,17 +208,34 @@ export default function StatusDashboard() {
     setOpenBanking({ state: "loading" });
     setAnalytics({ state: "loading" });
 
-    const [h, v, ob, a] = await Promise.allSettled([
-      fetchJson<Healthz>("/backend/healthz"),
-      fetchJson<Verification>("/backend/offers/verification"),
-      fetchJson<OpenBankingStatus>("/backend/integrations/open-banking/status"),
-      fetchJson<Analytics>("/backend/analytics/overview"),
-    ]);
+    const [healthResult, verificationResult, openBankingResult, analyticsResult] =
+      await Promise.allSettled([
+        api.healthz(),
+        api.offerVerification(),
+        api.openBankingStatus(),
+        api.analyticsOverview(),
+      ]);
 
-    setHealth(h.status === "fulfilled" ? { state: "ok", data: h.value } : { state: "error" });
-    setVerification(v.status === "fulfilled" ? { state: "ok", data: v.value } : { state: "error" });
-    setOpenBanking(ob.status === "fulfilled" ? { state: "ok", data: ob.value } : { state: "error" });
-    setAnalytics(a.status === "fulfilled" ? { state: "ok", data: a.value } : { state: "error" });
+    setHealth(
+      healthResult.status === "fulfilled"
+        ? { state: "ok", data: healthResult.value }
+        : { state: "error" },
+    );
+    setVerification(
+      verificationResult.status === "fulfilled"
+        ? { state: "ok", data: verificationResult.value }
+        : { state: "error" },
+    );
+    setOpenBanking(
+      openBankingResult.status === "fulfilled"
+        ? { state: "ok", data: openBankingResult.value }
+        : { state: "error" },
+    );
+    setAnalytics(
+      analyticsResult.status === "fulfilled"
+        ? { state: "ok", data: analyticsResult.value }
+        : { state: "error" },
+    );
     setRefreshedAt(new Date().toLocaleTimeString("ar-SA"));
     setIsRefreshing(false);
   }, []);
@@ -113,158 +247,51 @@ export default function StatusDashboard() {
   const backendDown = health.state === "error";
 
   return (
-    <main className="sitePage">
-      <div className="statusHeader">
+    <main className="mx-auto w-full max-w-6xl px-4 py-10">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow">صفحة داخلية</p>
-          <h1>حالة أثر</h1>
-        </div>
-        <button
-          className="statusRefresh"
-          type="button"
-          disabled={isRefreshing}
-          onClick={() => void load()}
-        >
-          {isRefreshing ? "..." : "تحديث"}
-        </button>
-      </div>
-
-      <div className="statusGrid">
-        {backendDown && (
-          <section className="statusDownCard">
-            <h2>الخادم غير متصل</h2>
-            <p className="emptyText">
-              تحقق من تشغيل الواجهة الخلفية ثم اضغط تحديث:
+          <h1 className="text-4xl font-black text-ink">{strings.status.title}</h1>
+          <p className="mt-2 text-sm leading-7 text-muted">{strings.status.internalNote}</p>
+          {refreshedAt && (
+            <p className="mt-1 text-xs font-bold text-muted">
+              {strings.status.lastUpdated}: {refreshedAt}
             </p>
-            <code>uvicorn api.main:app --port 8000</code>
-          </section>
+          )}
+        </div>
+        <Button variant="secondary" loading={isRefreshing} onClick={() => void load()}>
+          {isRefreshing ? strings.status.refreshing : strings.status.refresh}
+        </Button>
+      </header>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {backendDown && (
+          <Card className="border-danger/40 bg-danger/5 lg:col-span-2">
+            <SectionHeading title={strings.status.serviceDown} />
+            <code className="block rounded-xl bg-surface px-4 py-3 text-sm font-bold text-ink">
+              {strings.status.serviceCommand}
+            </code>
+          </Card>
         )}
 
-        <section className="statusCard" aria-label="صحة الخدمة">
-          <h2>الخدمة</h2>
-          {health.state !== "ok" ? (
-            <CardState result={health} />
-          ) : (
-            <div className="statusRows">
-              <div className="statusRow">
-                <span>الإصدار</span>
-                <strong>{health.data.version}</strong>
-              </div>
-              <div className="statusRow">
-                <span>العروض المحملة</span>
-                <strong>{health.data.offers_loaded}</strong>
-              </div>
-              <div className="statusRow">
-                <span>سلامة بنية الكتالوج</span>
-                <Bool value={health.data.catalog_valid} warnWhenOff />
-              </div>
-              <div className="statusRow">
-                <span>قاعدة بيانات دائمة</span>
-                <Bool value={health.data.postgres_enabled} />
-              </div>
-              <div className="statusRow">
-                <span>مزود النموذج اللغوي</span>
-                <Bool value={health.data.llm_configured} />
-              </div>
-              <p className="statusMeta">
-                تُعرض حالة الإعدادات كقيم منطقية فقط — لا تُعرض أي قيم سرية.
-              </p>
-            </div>
-          )}
-        </section>
+        <ServiceCard health={health} />
+        <VerificationCard verification={verification} />
+        <OpenBankingCard openBanking={openBanking} />
+        <AnalyticsCard analytics={analytics} />
 
-        <section className="statusCard" aria-label="التحقق من الأسعار">
-          <h2>التحقق من أسعار العروض</h2>
-          {verification.state !== "ok" ? (
-            <CardState result={verification} />
-          ) : (
-            <div className="statusRows">
-              <div className="statusRow">
-                <span>عروض مؤكدة المصدر</span>
-                <strong>
-                  {verification.data.verified_count} / {verification.data.total_offers}
-                </strong>
-              </div>
-              <div className="statusRow">
-                <span>الهدف الأدنى للكتالوج</span>
-                <strong>{verification.data.target_min_offers}</strong>
-              </div>
-              <div className="statusRow">
-                <span>جاهز للعرض العام</span>
-                <Bool value={verification.data.ready_for_public_demo} warnWhenOff />
-              </div>
-              {verification.data.issues.length > 0 && (
-                <ul className="statusIssueList">
-                  {groupIssues(verification.data.issues).map(([code, count]) => (
-                    <li key={code}>
-                      {code} × {count}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <p className="statusMeta">
-                الأسعار غير المؤكدة تبقى موسومة في كل الشاشات حتى تُراجع من
-                المصادر الرسمية.
-              </p>
-            </div>
-          )}
-        </section>
-
-        <section className="statusCard" aria-label="الخدمات المصرفية المفتوحة">
-          <h2>الخدمات المصرفية المفتوحة</h2>
-          {openBanking.state !== "ok" ? (
-            <CardState result={openBanking} />
-          ) : (
-            <div className="statusRows">
-              <div className="statusRow">
-                <span>المزود</span>
-                <strong>{openBanking.data.provider}</strong>
-              </div>
-              <div className="statusRow">
-                <span>وضع المحاكاة</span>
-                <Bool value={openBanking.data.mock_mode} />
-              </div>
-            </div>
-          )}
-        </section>
-
-        <section className="statusCard" aria-label="نشاط الجلسة">
-          <h2>نشاط الجلسة</h2>
-          {analytics.state !== "ok" ? (
-            <CardState result={analytics} />
-          ) : (
-            <div className="statusRows">
-              <div className="statusRow">
-                <span>رحلات محفوظة</span>
-                <strong>{analytics.data.journeys.total}</strong>
-              </div>
-              <div className="statusRow">
-                <span>رحلات لها مسار متاح</span>
-                <strong>{analytics.data.journeys.with_path_forward}</strong>
-              </div>
-              <div className="statusRow">
-                <span>طلبات تجريبية</span>
-                <strong>{analytics.data.applications.total}</strong>
-              </div>
-              <p className="statusMeta">
-                إحصاءات مجمعة من ذاكرة الخادم الحالية (أحدث الرحلات فقط) —
-                دون معرفات أو عمليات خام.
-              </p>
-            </div>
-          )}
-        </section>
-
-        <section className="statusCard" aria-label="اختصارات التجربة">
-          <h2>اختصارات التجربة</h2>
-          <div className="personaShortcuts">
+        <Card className="lg:col-span-2">
+          <SectionHeading title={strings.status.personasTitle} />
+          <div className="flex flex-wrap gap-2">
             {personas.map((persona) => (
-              <Link key={persona.id} href={`/journey?persona=${persona.id}`}>
+              <Link
+                key={persona.id}
+                href={`/journey?persona=${persona.id}`}
+                className="rounded-xl border border-line px-4 py-2 text-sm font-bold text-brand hover:border-brand dark:text-accent"
+              >
                 {persona.name} — {persona.label}
               </Link>
             ))}
           </div>
-          {refreshedAt && <p className="statusMeta">آخر تحديث: {refreshedAt}</p>}
-        </section>
+        </Card>
       </div>
     </main>
   );

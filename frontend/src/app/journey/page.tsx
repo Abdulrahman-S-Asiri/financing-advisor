@@ -1,18 +1,21 @@
 import type { Metadata } from "next";
 
-import JourneyApp from "../../features/journey/JourneyApp";
+import { JourneyStartPage } from "@/components/journey/JourneyStartPage";
+import { strings } from "@/lib/strings";
 
 export const metadata: Metadata = {
-  title: "رحلة التمويل",
-  description:
-    "رحلة قرار التمويل: ربط بيانات محاكاة، تحليل الملف المالي، ومقارنة العروض بأسباب واضحة.",
+  title: strings.nav.journey,
 };
 
 export default async function JourneyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ persona?: string }>;
+  searchParams?: Promise<{ persona?: string | string[] }>;
 }) {
-  const { persona } = await searchParams;
-  return <JourneyApp initialPersonaId={persona} />;
+  const resolved = await searchParams;
+  const persona = Array.isArray(resolved?.persona)
+    ? resolved?.persona[0]
+    : resolved?.persona;
+
+  return <JourneyStartPage initialPersonaId={persona} />;
 }

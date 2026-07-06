@@ -12,10 +12,10 @@ before any audience.
 # Terminal 2
 .venv\Scripts\python.exe -m uvicorn api.main:app --port 8000
 # Terminal 3
-cd frontend-v2; npm run dev
+cd frontend; npm run dev
 ```
 
-Open http://127.0.0.1:3001 and http://127.0.0.1:3001/status in two tabs.
+Open http://127.0.0.1:3000 and http://127.0.0.1:3000/status in two tabs.
 Confirm the status page shows the service card green. Advisor chat needs
 `ANTHROPIC_API_KEY` in `.env` — verify "مزود النموذج اللغوي: مفعل" on /status.
 
