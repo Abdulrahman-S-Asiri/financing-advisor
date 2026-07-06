@@ -1,0 +1,296 @@
+// Runtime validation of backend payloads. The backend contract is frozen and
+// pinned by core/tests/fixtures/frontend_contract_keys.json — if a schema here
+// rejects a real response, fix the schema, not the backend.
+import { z } from "zod";
+
+// Backend omits optional detail fields on compact payloads and sends null for
+// unpriced matches, so schemas stay tolerant: unknown keys pass through,
+// required keys are enforced.
+
+export const matchStatusSchema = z.enum([
+  "eligible",
+  "conditional",
+  "ineligible",
+  "policy_review",
+]);
+
+export const agentEventSchema = z
+  .object({
+    journey_id: z.string(),
+    sequence: z.number(),
+    type: z.string(),
+    agent: z.string().nullable(),
+    message_ar: z.string(),
+    payload: z.record(z.string(), z.unknown()).default({}),
+    created_at: z.string(),
+  })
+  .loose();
+
+export const costBreakdownSchema = z
+  .object({
+    principal: z.number(),
+    tenor_months: z.number(),
+    flat_rate_annual: z.number(),
+    monthly_installment: z.number(),
+    total_profit: z.number(),
+    admin_fee: z.number(),
+    total_amount_payable: z.number(),
+    apr_effective: z.number(),
+  })
+  .loose();
+
+export const dbrDecisionSchema = z
+  .object({
+    passes: z.boolean(),
+    tier: z.string(),
+    salary_linked_ratio: z.number(),
+    non_real_estate_ratio: z.number(),
+    total_ratio: z.number(),
+    salary_linked_cap: z.number(),
+    non_real_estate_cap: z.number().nullable(),
+    total_cap: z.number().nullable(),
+    breaches: z.array(z.string()),
+    policy_review: z.boolean(),
+  })
+  .loose();
+
+export const nearMissSchema = z
+  .object({
+    kind: z.string(),
+    message: z.string(),
+    requested_amount: z.number().nullable(),
+    requested_tenor_months: z.number().nullable(),
+    monthly_installment: z.number().nullable(),
+    status: matchStatusSchema.nullable(),
+  })
+  .loose();
+
+export const offerMatchSchema = z
+  .object({
+    offer_id: z.string(),
+    institution: z.string(),
+    product: z.string(),
+    structure: z.string(),
+    status: matchStatusSchema,
+    monthly_installment: z.number().nullable(),
+    apr_effective: z.number().nullable(),
+    total_amount_payable: z.number().nullable(),
+    payment_schedule_months: z.number(),
+    reasons: z.array(z.string()),
+    conditions: z.array(z.string()),
+    rate_verified: z.boolean(),
+    near_miss_suggestions: z.array(nearMissSchema),
+    category: z.string().optional(),
+    source_url: z.string().optional(),
+    retrieved_at: z.string().optional(),
+    cost_breakdown: costBreakdownSchema.nullable().optional(),
+    dbr: dbrDecisionSchema.nullable().optional(),
+  })
+  .loose();
+
+export const financialProfileSchema = z
+  .object({
+    persona_id: z.string(),
+    gross_salary: z.number(),
+    other_monthly_income_avg: z.number(),
+    employment_type: z.string(),
+    is_retiree: z.boolean(),
+    age: z.number(),
+    nationality: z.string(),
+    salary_linked_obligations: z.number(),
+    other_obligations: z.number(),
+    real_estate_obligations: z.number(),
+    months_observed: z.number(),
+    salary_bank: z.string(),
+    salary_stability_score: z.number(),
+    obligation_trend: z.string(),
+    confidence_level: z.string(),
+    detection_notes: z.array(z.string()),
+    total_monthly_income: z.number(),
+  })
+  .loose();
+
+export const financialHealthSchema = z
+  .object({
+    tier: z.string(),
+    salary_linked_ratio: z.number(),
+    non_real_estate_ratio: z.number(),
+    total_ratio: z.number(),
+    salary_linked_cap: z.number(),
+    non_real_estate_cap: z.number().nullable(),
+    total_cap: z.number().nullable(),
+    policy_review: z.boolean(),
+    breaches: z.array(z.string()),
+    max_affordable_new_installment: z.number(),
+    monthly_obligations: z.number(),
+  })
+  .loose();
+
+export const journeyResponseSchema = z
+  .object({
+    journey_id: z.string(),
+    profile: financialProfileSchema,
+    max_affordable_new_installment: z.number(),
+    financial_health: financialHealthSchema,
+    matches: z.array(offerMatchSchema),
+    suggested_questions: z.array(z.string()),
+    events: z.array(agentEventSchema),
+  })
+  .loose();
+
+export const simulationResponseSchema = z
+  .object({
+    requested_amount: z.number(),
+    requested_tenor_months: z.number(),
+    salary_transfer: z.boolean(),
+    max_affordable_new_installment: z.number(),
+    matches: z.array(offerMatchSchema),
+  })
+  .loose();
+
+export const applicationRecordSchema = z
+  .object({
+    application_id: z.string(),
+    journey_id: z.string(),
+    offer_id: z.string(),
+    status: z.string(),
+    summary: z
+      .object({
+        institution: z.string(),
+        product: z.string(),
+        monthly_installment: z.number().nullable(),
+        total_amount_payable: z.number().nullable(),
+        simulation_notice_ar: z.string(),
+      })
+      .loose(),
+    history: z.array(
+      z
+        .object({
+          status: z.string(),
+          message_ar: z.string(),
+          created_at: z.string(),
+        })
+        .loose(),
+    ),
+    simulation: z.boolean(),
+  })
+  .loose();
+
+export const offerDetailResponseSchema = z
+  .object({
+    journey_id: z.string(),
+    offer: offerMatchSchema,
+    dbr: dbrDecisionSchema.nullable().optional(),
+  })
+  .loose();
+
+export const paymentScheduleResponseSchema = z
+  .object({
+    journey_id: z.string(),
+    offer_id: z.string(),
+    payment_schedule: z.array(
+      z
+        .object({
+          month: z.number(),
+          installment: z.number(),
+          principal_component: z.number(),
+          profit_component: z.number(),
+          remaining_principal: z.number(),
+        })
+        .loose(),
+    ),
+  })
+  .loose();
+
+export const healthzSchema = z
+  .object({
+    status: z.string(),
+    version: z.string(),
+    offers_loaded: z.number(),
+    catalog_valid: z.boolean(),
+    postgres_enabled: z.boolean(),
+    llm_configured: z.boolean(),
+    open_banking_provider: z.string(),
+  })
+  .loose();
+
+export const verificationIssueSchema = z
+  .object({
+    offer_id: z.string().nullable(),
+    severity: z.string(),
+    code: z.string(),
+    message: z.string(),
+  })
+  .loose();
+
+export const offerVerificationSchema = z
+  .object({
+    total_offers: z.number(),
+    verified_count: z.number(),
+    unverified_count: z.number(),
+    missing_source_count: z.number(),
+    stale_verified_count: z.number(),
+    target_min_offers: z.number(),
+    ready_for_public_demo: z.boolean(),
+    issues: z.array(verificationIssueSchema),
+  })
+  .loose();
+
+export const openBankingStatusSchema = z
+  .object({
+    provider: z.string(),
+    mock_mode: z.boolean(),
+  })
+  .loose();
+
+export const analyticsOverviewSchema = z
+  .object({
+    journeys: z
+      .object({
+        total: z.number(),
+        with_path_forward: z.number(),
+      })
+      .loose(),
+    applications: z
+      .object({
+        total: z.number(),
+        status_counts: z.record(z.string(), z.number()).default({}),
+      })
+      .loose(),
+  })
+  .loose();
+
+export const chatStreamPayloadSchema = z
+  .object({
+    delta: z.string().optional(),
+    reply: z.string().optional(),
+    detail: z.string().optional(),
+    guardrail_fallback: z.boolean().optional(),
+  })
+  .loose();
+
+export type AgentEvent = z.infer<typeof agentEventSchema>;
+export type CostBreakdown = z.infer<typeof costBreakdownSchema>;
+export type DbrDecision = z.infer<typeof dbrDecisionSchema>;
+export type NearMissSuggestion = z.infer<typeof nearMissSchema>;
+export type OfferMatch = z.infer<typeof offerMatchSchema>;
+export type FinancialProfile = z.infer<typeof financialProfileSchema>;
+export type FinancialHealth = z.infer<typeof financialHealthSchema>;
+export type JourneyResponse = z.infer<typeof journeyResponseSchema>;
+export type SimulationResponse = z.infer<typeof simulationResponseSchema>;
+export type ApplicationRecord = z.infer<typeof applicationRecordSchema>;
+export type OfferDetailResponse = z.infer<typeof offerDetailResponseSchema>;
+export type PaymentScheduleResponse = z.infer<typeof paymentScheduleResponseSchema>;
+export type PaymentScheduleRow = PaymentScheduleResponse["payment_schedule"][number];
+export type Healthz = z.infer<typeof healthzSchema>;
+export type VerificationIssue = z.infer<typeof verificationIssueSchema>;
+export type OfferVerification = z.infer<typeof offerVerificationSchema>;
+export type OpenBankingStatus = z.infer<typeof openBankingStatusSchema>;
+export type AnalyticsOverview = z.infer<typeof analyticsOverviewSchema>;
+export type ChatStreamPayload = z.infer<typeof chatStreamPayloadSchema>;
+
+export type ChatMessage = {
+  role: "user" | "advisor";
+  text: string;
+  fallback?: boolean;
+};
