@@ -8,13 +8,32 @@ frontend/node_modules/
 frontend/out/
 frontend/.env*
 
+frontend-v2/.next/
+frontend-v2/node_modules/
+frontend-v2/out/
+frontend-v2/.env*
+frontend-v2/test-results/
+frontend-v2/playwright-report/
+*.tsbuildinfo
+
 # Local assistant/tooling config — private by policy, never published.
 CLAUDE.md
 CLAUDE.local.md
 AGENTS.md
 AGENTS.local.md
 .claude/
+.codex/
+.openai/
 .agents/
 .mcp.json
+prompts/
+ai-notes/
+chatgpt-notes/
+private-notes/
+*.prompt.md
+*_PROMPT.md
+*_CONTEXT.md
+PROJECT_CONTEXT_DISCOVERY.md
+PROJECT_VISUAL_AUDIT.md
 docs/MCP_AND_SKILLS.md
 docs/AI_UPGRADE_IDEAS.md
