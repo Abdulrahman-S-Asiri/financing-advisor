@@ -5,8 +5,9 @@ This file records completed implementation phases, verification status, and the 
 ## Current Status
 
 - Branch: `master`
-- Latest documented phase: Production groundwork
+- Latest documented phase: Official ATHAR visual identity
 - Main app flow: consent simulation, live journey events, financial dashboard, offers marketplace, what-if simulator, advisor chat, and simulated application tracker.
+- Frontend identity: ATHAR / أثر is the official website identity, using Midnight Navy, Dune Gold, Sand White, Ink, the decision-dot mark, and the approved typography stack.
 - Local private files are ignored by `.gitignore`, including `.env`, `.venv/`, frontend env files, Next cache, and dependency folders.
 
 ## Completed Phases
@@ -46,9 +47,11 @@ This file records completed implementation phases, verification status, and the 
 | Full website shell | Done | Landing page, shared nav + footer with demo disclaimer, IBM Plex Sans Arabic, Arabic error/404 pages. |
 | Journey route move | Done | Journey extracted to `features/journey/JourneyApp.tsx`, served at `/journey` with `?persona=` preselect; offer-detail back-link updated. |
 | Docs and status pages | Done | `/docs` explains engine-vs-narrator and demo limits; `/status` shows health, honest rate-verification coverage (0/8), OB provider, and session activity from live endpoints. |
+| Official ATHAR visual identity | Done | Frontend routes use ATHAR / أثر branding, navy/gold/sand/ink tokens, SVG logo variants, and Space Grotesk / IBM Plex Sans Arabic / IBM Plex Mono typography. |
 
 ## Recent Commits
 
+- `dfb43ba` - Add debt payment coming soon UI
 - `a07b495` - Improve main flow mobile wrapping
 - `f01847d` - Improve route mobile layout
 - `53f4d25` - Polish offer detail route

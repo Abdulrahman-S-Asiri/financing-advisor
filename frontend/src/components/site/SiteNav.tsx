@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
+import AtharLogo from "./AtharLogo";
+
 const links = [
   { href: "/", label: "الرئيسية" },
   { href: "/journey", label: "الرحلة" },
@@ -31,8 +33,7 @@ export default function SiteNav() {
     <header className="siteNav">
       <div className="siteNavInner">
         <Link className="siteNavBrand" href="/" onClick={() => setMenuOpen(false)}>
-          <span className="brandMark">FA</span>
-          <span className="siteNavBrandName">مستشار التمويل</span>
+          <AtharLogo size="sm" variant="arabic" />
           <span className="siteNavDemoPill">تجريبي</span>
         </Link>
 

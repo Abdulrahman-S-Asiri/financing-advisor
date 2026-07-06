@@ -1,14 +1,16 @@
 import Link from "next/link";
 
+import AtharLogo from "./AtharLogo";
+
 export default function SiteFooter() {
   return (
     <footer className="siteFooter">
       <div className="siteFooterGrid">
         <div>
-          <p className="siteFooterBrand">مستشار التمويل</p>
+          <AtharLogo tone="reversed" variant="horizontal" />
           <p className="siteFooterNote">
-            مستشار تمويل وكيلي يقرأ الوضع المالي، يقارن العروض، ويشرح كل قرار
-            بالعربية.
+            أثر مستشار تمويل وكيلي يقرأ الوضع المالي، يقارن العروض، ويشرح كل
+            قرار بالعربية.
           </p>
           <p className="siteFooterDisclaimer">
             منصة تجريبية — البيانات البنكية محاكاة، أسعار العروض غير مؤكدة،

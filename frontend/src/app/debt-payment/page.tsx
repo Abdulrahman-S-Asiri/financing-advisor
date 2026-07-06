@@ -36,12 +36,13 @@ export default function DebtPaymentPage() {
         <p className="eyebrow">سداد المديونية</p>
         <h1>افهم أثر سداد ديونك قبل طلب تمويل جديد</h1>
         <p className="debtPaymentLead">
-          ميزة قادمة تساعد العميل على رؤية الالتزامات القائمة، ومحاكاة أثر سدادها
-          على نسب الملاءة والأهلية، ثم اختيار المسار الأنسب قبل أي طلب تمويل.
+          ميزة قادمة داخل أثر تساعد العميل على رؤية الالتزامات القائمة، ومحاكاة
+          أثر سدادها على نسب الملاءة والأهلية، ثم اختيار المسار الأنسب قبل أي
+          طلب تمويل.
         </p>
         <div className="debtPaymentActions">
           <Link className="primaryButton" href="/journey">
-            جرّب رحلة التمويل الحالية
+            جرّب رحلة أثر الحالية
           </Link>
           <Link className="landingCtaSecondary" href="/docs">
             كيف تُحسب الأرقام

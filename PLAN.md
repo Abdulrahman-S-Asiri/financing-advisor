@@ -1,4 +1,4 @@
-# Financing Advisor — Execution Plan
+# ATHAR / أثر Financing Advisor — Execution Plan
 
 This is the working execution plan for the project. It is written so that any
 future engineering session can continue the work without other context: what
@@ -14,7 +14,7 @@ number-fidelity guardrail enforces this on every advisor reply.
 
 ## 1. Product vision
 
-The financing intelligence layer for Saudi Arabia — not a comparison table.
+ATHAR / أثر is the financing intelligence layer for Saudi Arabia — not a comparison table.
 An agentic advisor that reads the customer's real financial life through Open
 Banking, matches it against every offer in the market, prices offers honestly
 (flat rate → effective APR), explains every decision in Arabic — including
@@ -27,6 +27,9 @@ the consented outcome data is the long-term moat.
 A complete consumer-facing website (Arabic-first, RTL), currently demo-grade:
 
 - Public landing page with an honest value proposition and demo framing.
+- Official ATHAR / أثر visual identity across the frontend: Midnight Navy,
+  Dune Gold, Sand White, Ink, geometric decision-dot mark, and the approved
+  Space Grotesk / IBM Plex Sans Arabic / IBM Plex Mono typography stack.
 - The four-stage journey (consent → analysis → offers → decision) as the app.
 - Offer detail views with full cost breakdown and payment schedule.
 - A "how it works" page stating exactly what is computed vs narrated and the
@@ -39,7 +42,7 @@ A complete consumer-facing website (Arabic-first, RTL), currently demo-grade:
 ## 3. Architecture
 
 ```
-frontend/  Next.js App Router (:3000), plain-CSS design tokens, IBM Plex Sans Arabic
+frontend/  Next.js App Router (:3000), ATHAR plain-CSS tokens, Arabic-first RTL
    |   /            landing (static)
    |   /journey     the journey app (client component, ?persona= preselect)
    |   /journeys/[journeyId]/offers/[offerId]   offer detail
@@ -78,16 +81,16 @@ stdlib with no I/O — callers read files and pass parsed payloads in.
 | Route | Type | Content / notes |
 |---|---|---|
 | `/` | static | Hero + honesty strip, 4-step how-it-works, 3 trust cards, persona cards → journey, CTA band |
-| `/journey` | client | The full Double Diamond app (`features/journey/JourneyApp.tsx`); `?persona=` seeds the form |
+| `/journey` | client | The full ATHAR decision journey (`features/journey/JourneyApp.tsx`); `?persona=` seeds the form |
 | `/journeys/[jid]/offers/[oid]` | client | Cost breakdown, DBR trace, month-by-month schedule, source link |
 | `/docs` | static | Idea, engine-vs-narrator, data path, demo limitations, verification meaning |
 | `/status` | client | healthz + offers/verification + OB status + analytics cards; persona shortcuts; refresh; server-down guidance |
 | `error.tsx` / `not-found.tsx` | — | Arabic fallbacks with recovery links |
 
-Site shell: `src/components/site/` (SiteNav with mobile menu + demo pill,
+Site shell: `src/components/site/` (AtharLogo, SiteNav with mobile menu + demo pill,
 SiteFooter with disclaimer). New CSS lives in one delimited block at the end
 of `globals.css` (`siteNav*`, `landing*`, `docs*`, `status*` prefixes) using
-the existing tokens. Journey internals were intentionally not restructured —
+the ATHAR identity tokens. Journey internals were intentionally not restructured —
 journey state is component-local and resets on navigation (see §16).
 
 ## 6. Backend APIs

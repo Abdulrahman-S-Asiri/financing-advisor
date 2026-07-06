@@ -11,6 +11,7 @@ import {
   statusCounts,
 } from "./format";
 import { parseSseEvent } from "./sse";
+import AtharLogo from "../../components/site/AtharLogo";
 import type {
   AgentEvent,
   ApplicationRecord,
@@ -510,12 +511,12 @@ export default function JourneyApp({
 
   return (
     <main className="appShell">
-      <aside className="stageRail" aria-label="مراحل Double Diamond">
+      <aside className="stageRail" aria-label="مراحل أثر">
         <div className="brandBlock">
-          <span className="brandMark">FA</span>
+          <AtharLogo size="sm" tone="reversed" variant="mark" />
           <div>
-            <p className="eyebrow">Double Diamond</p>
-            <h1>مستشار التمويل</h1>
+            <p className="eyebrow">ATHAR</p>
+            <h1>أثر</h1>
           </div>
         </div>
 
@@ -561,7 +562,7 @@ export default function JourneyApp({
           </div>
         </header>
 
-        <section className="diamondMap" aria-label="خريطة Double Diamond">
+        <section className="diamondMap" aria-label="خريطة رحلة أثر">
           {stages.map((stage) => (
             <button
               key={stage.key}

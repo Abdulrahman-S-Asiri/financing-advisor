@@ -14,7 +14,7 @@ export default function GlobalError({
       <section className="emptyState siteErrorState">
         <h3>حدث خطأ غير متوقع</h3>
         <p className="emptyText">
-          {error.message || "تعذر عرض هذه الصفحة. حاول مرة أخرى."}
+          {error.message || "تعذر عرض هذه الصفحة داخل أثر. حاول مرة أخرى."}
         </p>
         <div className="siteErrorActions">
           <button className="primaryButton" type="button" onClick={() => reset()}>

@@ -1,107 +1,125 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import AtharLogo from "../components/site/AtharLogo";
 import { personas } from "../features/journey/data";
 import { formatSar } from "../features/journey/format";
 
 export const metadata: Metadata = {
   description:
-    "مستشار تمويل وكيلي يقرأ الوضع المالي، يطبق قواعد الملاءة، يقارن العروض، ويشرح كل قرار بالعربية — عرض تجريبي.",
+    "أثر مستشار تمويل وكيلي يقرأ الوضع المالي، يقارن العروض، ويشرح قرار التمويل بالعربية — عرض تجريبي.",
 };
 
-const steps = [
+const flow = [
   {
-    label: "اكتشف",
-    what: "ربط بيانات بنكية محاكاة بموافقة صريحة وتحديد مبلغ ومدة التمويل.",
-    sees: "شاشة موافقة بنمط الخدمات المصرفية المفتوحة وثلاث شخصيات جاهزة للتجربة.",
+    label: "01",
+    title: "نقطة قرار",
+    text: "تبدأ الرحلة بطلب تمويل واضح وموافقة صريحة على بيانات مصرفية محاكاة.",
   },
   {
-    label: "حدد",
-    what: "وكيل الملف المالي يستخرج الراتب والالتزامات ويحسب نسب الملاءة.",
-    sees: "أحداث مباشرة بالعربية لكل خطوة، ومؤشرات نسب الاستقطاع مقابل الحدود.",
+    label: "02",
+    title: "أثر مالي",
+    text: "المحرك يستخرج الدخل والالتزامات ونسب الملاءة دون نقل الحسابات إلى نموذج لغوي.",
   },
   {
-    label: "طوّر",
-    what: "وكيلا المطابقة والتكلفة يختبران كل عرض ويسعّرانه بمعدل النسبة الفعلي.",
-    sees: "عروض مرتبة بأسبابها، محاكي ماذا-لو، ومقارنة جنباً إلى جنب.",
+    label: "03",
+    title: "تموّج السوق",
+    text: "كل عرض يُختبر بالتكلفة والأهلية، ويظل وسم السعر غير المؤكد ظاهراً.",
   },
   {
-    label: "سلّم",
-    what: "توصية مُفسَّرة، مستشار محادثة مقيد بأرقام المحرك، وتقديم محاكى.",
-    sees: "سبب التوصية، إجابات ما-الذي-يتغير، ومتتبع حالة الطلب التجريبي.",
+    label: "04",
+    title: "قرار مفسر",
+    text: "تحصل على توصية قابلة للمراجعة، وسبب قبول أو رفض، وخطوة تالية محاكاة.",
+  },
+];
+
+const trustPoints = [
+  {
+    title: "الأرقام من المحرك",
+    text: "كل ريال ونسبة وقسط يأتي من دوال حسابية حتمية مُغطاة بالاختبارات.",
+  },
+  {
+    title: "الذهب للنقطة المهمة فقط",
+    text: "هوية أثر تستخدم الذهبي لنقطة القرار والأرقام المفتاحية، لا للزخرفة.",
+  },
+  {
+    title: "حدود العرض واضحة",
+    text: "لا توجد موافقة حقيقية أو دفع أو اتصال بحساب بنكي فعلي داخل هذا العرض.",
   },
 ];
 
 export default function LandingPage() {
   return (
-    <main className="sitePage">
-      <section className="landingHero">
-        <p className="eyebrow">مستشار تمويل وكيلي — عرض تجريبي</p>
-        <h1>قرار تمويلك، محسوب بدقة ومُفسَّر بالعربية</h1>
-        <p className="landingLead">
-          يقرأ وضعك المالي من بيانات بنكية (محاكاة)، يطبق قواعد الملاءة
-          للأفراد بحسابات حتمية مُختبرة، يقارن هياكل التمويل الإسلامي بتكلفتها
-          الحقيقية، ويشرح كل قبول وكل رفض — بدلاً من جدول مقارنة صامت.
-        </p>
-        <div className="landingCtaRow">
-          <Link className="primaryButton" href="/journey">
-            ابدأ الرحلة التجريبية
-          </Link>
-          <Link className="landingCtaSecondary" href="/docs">
-            كيف يعمل
-          </Link>
+    <main className="sitePage atharHome">
+      <section className="atharHero" aria-label="أثر">
+        <div className="atharHeroCopy">
+          <AtharLogo size="lg" variant="horizontal" />
+          <p className="eyebrow">واجهة تمويل وكيلي — عرض تجريبي</p>
+          <h1>أثر القرار المالي يبدأ من حقيقة واحدة محسوبة</h1>
+          <p className="landingLead">
+            أثر يحول بيانات مصرفية محاكاة إلى ملف ملاءة واضح، ثم يطابقه مع
+            عروض تمويل إسلامي ويشرح النتيجة بالعربية. النموذج يشرح فقط؛
+            المحرك هو من يحسب.
+          </p>
+          <div className="landingCtaRow">
+            <Link className="primaryButton" href="/journey">
+              ابدأ رحلة أثر
+            </Link>
+            <Link className="landingCtaSecondary" href="/docs">
+              كيف تُحسب النتائج
+            </Link>
+          </div>
+          <p className="landingHonesty">
+            بيانات محاكاة · أسعار غير مؤكدة · لا يُعد عرضاً تمويلياً
+          </p>
         </div>
-        <p className="landingHonesty">
-          بيانات بنكية محاكاة · أسعار العروض غير مؤكدة · لا يُعد عرضاً تمويلياً
-        </p>
+
+        <aside className="atharDecisionCard" aria-label="ملخص هوية أثر">
+          <div className="atharDecisionMark" aria-hidden="true">
+            <AtharLogo size="lg" variant="mark" />
+          </div>
+          <dl>
+            <div>
+              <dt>العلامة</dt>
+              <dd>نقطة قرار وتموّجات أثرها في السوق</dd>
+            </div>
+            <div>
+              <dt>الحساب</dt>
+              <dd>محرك حتمي، لا أرقام مولدة</dd>
+            </div>
+            <div>
+              <dt>النتيجة</dt>
+              <dd>تفسير واضح لا وعد موافقة</dd>
+            </div>
+          </dl>
+        </aside>
       </section>
 
-      <section className="landingSection" aria-label="كيف تعمل الرحلة">
-        <h2>أربع مراحل، وكلاء يعملون أمامك</h2>
+      <section className="landingSection" aria-label="مسار أثر">
+        <h2>من نقطة القرار إلى أثرها في كل عرض</h2>
         <p className="landingSectionLead">
-          كل حدث يظهر على الشاشة يقابل استدعاء حقيقياً في المحرك — لا يوجد
-          تقدم وهمي.
+          كل خطوة في الرحلة تعرض ما حدث فعلاً: قراءة، حساب، مطابقة، ثم شرح.
         </p>
-        <div className="landingSteps">
-          {steps.map((step, index) => (
+        <div className="atharFlow">
+          {flow.map((step) => (
             <article className="landingStepCard" key={step.label}>
-              <span className="landingStepDiamond" aria-hidden="true">
-                {index + 1}
-              </span>
-              <h3>{step.label}</h3>
-              <p>{step.what}</p>
-              <p>{step.sees}</p>
+              <span className="atharStepLabel">{step.label}</span>
+              <h3>{step.title}</h3>
+              <p>{step.text}</p>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="landingSection" aria-label="الشفافية">
-        <h2>الشفافية هي المنتج</h2>
+      <section className="landingSection" aria-label="ثقة وشفافية">
+        <h2>هوية مصرفية هادئة، وشفافية غير قابلة للتفاوض</h2>
         <div className="landingTrust">
-          <article className="landingTrustCard">
-            <h3>الأرقام من المحرك، لا من النموذج</h3>
-            <p>
-              كل ريال ونسبة وقسط يأتي من دوال حسابية حتمية مُغطاة بالاختبارات.
-              النموذج اللغوي يشرح النتائج فقط، ويمنعه حارس رقمي من ذكر أي رقم
-              لم يحسبه المحرك — وإن تعذر ذلك يظهر رد آمن معلَّم بوضوح.
-            </p>
-          </article>
-          <article className="landingTrustCard">
-            <h3>شفافية الأسعار</h3>
-            <p>
-              أسعار العروض الحالية بيانات مبدئية تحمل وسم «سعر غير مؤكد» حتى
-              تُراجع من صفحات الجهات الرسمية، والوسم لا يختفي في أي شاشة.{" "}
-              <Link href="/status">تابع نسبة التحقق الحالية</Link>.
-            </p>
-          </article>
-          <article className="landingTrustCard">
-            <h3>الرفض مُفسَّر، لا مخفي</h3>
-            <p>
-              كل عرض غير مؤهل يعرض السبب الدقيق: أي حد تجاوزته وبكم، وما أقل
-              تغيير يقلب النتيجة — مبلغ أقل، مدة أقصر، أو تحويل راتب.
-            </p>
-          </article>
+          {trustPoints.map((point) => (
+            <article className="landingTrustCard" key={point.title}>
+              <h3>{point.title}</h3>
+              <p>{point.text}</p>
+            </article>
+          ))}
         </div>
       </section>
 
@@ -109,11 +127,10 @@ export default function LandingPage() {
         <div className="landingUpcomingCard">
           <div>
             <span className="warningBadge">قريباً</span>
-            <h2>سداد المديونية قبل التمويل الجديد</h2>
+            <h2>سداد المديونية كأثر قبل التمويل الجديد</h2>
             <p>
               ميزة قادمة لمحاكاة أثر سداد الالتزامات الحالية على نسب الملاءة
-              والأهلية، مع بقاء كل الحسابات داخل المحرك الحتمي ودون تنفيذ أي
-              عملية دفع حقيقية.
+              والأهلية، دون تنفيذ أي عملية دفع حقيقية.
             </p>
           </div>
           <Link className="landingCtaSecondary" href="/debt-payment">
@@ -123,7 +140,7 @@ export default function LandingPage() {
       </section>
 
       <section className="landingSection" aria-label="شخصيات التجربة">
-        <h2>جرّب بثلاث شخصيات جاهزة</h2>
+        <h2>جرّب أثر بثلاث شخصيات جاهزة</h2>
         <div className="landingPersonas">
           {personas.map((persona) => (
             <Link
@@ -143,16 +160,16 @@ export default function LandingPage() {
           ))}
         </div>
         <p className="landingCaption">
-          شخصيات ببيانات محاكاة مثبتة — نفس النتائج في كل تشغيل، وهو ما يجعل
-          العرض قابلاً للتكرار أمام أي جمهور.
+          شخصيات ببيانات محاكاة مثبتة — نفس النتائج في كل تشغيل.
         </p>
       </section>
 
       <section className="landingCtaBand" aria-label="ابدأ الآن">
-        <h2>شاهد الوكلاء يعملون على حالة حقيقية البنية</h2>
-        <p>من الموافقة إلى التوصية المُفسَّرة في أقل من دقيقة.</p>
+        <AtharLogo tone="reversed" variant="mark" />
+        <h2>شاهد أثر القرار على حالة كاملة</h2>
+        <p>من الموافقة إلى التوصية المُفسَّرة في رحلة واحدة.</p>
         <Link className="primaryButton" href="/journey">
-          ابدأ الرحلة التجريبية
+          ابدأ رحلة أثر
         </Link>
       </section>
     </main>

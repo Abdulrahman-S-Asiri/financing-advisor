@@ -1,6 +1,6 @@
-# Financing Advisor — Amad Hackathon 2026 scaffold
+# ATHAR / أثر — Financing Advisor
 
-An agentic financing advisor for the Saudi market: reads the customer's real
+ATHAR / أثر is an agentic financing advisor for the Saudi market: reads the customer's real
 financial life through (mock) Open Banking AIS, matches it against a catalog
 of financing offers, ranks them by true total cost across Islamic structures,
 explains every decision — including rejections — and answers questions
@@ -28,7 +28,7 @@ uvicorn mock_open_banking.main:app --port 8100
 # DATABASE_URL=postgresql://amad:amad@127.0.0.1:5432/amad
 uvicorn api.main:app --port 8000
 
-# Terminal 3 — Double Diamond frontend
+# Terminal 3 — ATHAR frontend
 cd frontend
 npm install
 npm run dev
@@ -49,9 +49,9 @@ Everything else runs without any key.
 ## Architecture
 
 ```
-frontend/  ─────────  Arabic RTL website (:3000)
+frontend/  ─────────  Arabic-first ATHAR website (:3000)
    |  /            landing page (value prop + honesty strip + demo CTAs)
-   |  /journey     the Double Diamond app (?persona=<id> preselects the form)
+   |  /journey     the ATHAR decision journey (?persona=<id> preselects the form)
    |     Discover     persona + consent + financing request
    |     Define       extracted profile + affordability frame
    |     Develop      ranked offers + eligibility reasons
@@ -97,6 +97,11 @@ api/  ──────────────  the platform API (:8000)
             llm_client.py   Anthropic-compatible wrapper, endpoint/model from env
 db/   seed_offers.json (JSON-first offers repo) + schema.sql (Postgres path)
 ```
+
+Frontend identity uses the official ATHAR / أثر system: Midnight Navy
+`#0A1F44`, Dune Gold `#C9A86A`, Sand White `#FAF7F2`, Ink `#111111`, Space
+Grotesk for English/headlines, IBM Plex Sans Arabic for Arabic, and IBM Plex
+Mono for labels and data.
 
 Set `DATABASE_URL` to enable Postgres-backed journey snapshots, ordered agent
 trace events, and application status history. Without it, the API keeps the

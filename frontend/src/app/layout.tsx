@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Sans_Arabic } from "next/font/google";
+import {
+  IBM_Plex_Mono,
+  IBM_Plex_Sans_Arabic,
+  Space_Grotesk,
+} from "next/font/google";
 
 import SiteFooter from "../components/site/SiteFooter";
 import SiteNav from "../components/site/SiteNav";
@@ -14,13 +18,27 @@ const plex = IBM_Plex_Sans_Arabic({
   display: "swap",
 });
 
+const space = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-space",
+  display: "swap",
+});
+
+const mono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-mono",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: {
-    default: "مستشار التمويل",
-    template: "%s | مستشار التمويل",
+    default: "أثر",
+    template: "%s | أثر",
   },
   description:
-    "مستشار تمويل رقمي يقرأ الوضع المالي، يقارن العروض، ويشرح كل قرار بالعربية — عرض تجريبي.",
+    "أثر مستشار تمويل وكيلي يقرأ الوضع المالي، يقارن العروض، ويشرح كل قرار بالعربية — عرض تجريبي.",
 };
 
 export default function RootLayout({
@@ -30,7 +48,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl">
-      <body className={plex.variable}>
+      <body className={`${plex.variable} ${space.variable} ${mono.variable}`}>
         <SiteNav />
         {children}
         <SiteFooter />

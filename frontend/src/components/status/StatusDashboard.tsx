@@ -117,7 +117,7 @@ export default function StatusDashboard() {
       <div className="statusHeader">
         <div>
           <p className="eyebrow">صفحة داخلية</p>
-          <h1>حالة المنصة</h1>
+          <h1>حالة أثر</h1>
         </div>
         <button
           className="statusRefresh"
