@@ -24,9 +24,8 @@ explicit approval before executing (deletions, pushes, deployments, spending).
    simulated. No copy that promises approval or implies licensure.
 4. **PDPL data minimization.** The advisor context and all logs carry engine
    outputs and event metadata only — never raw transactions.
-5. **Green gates before moving on.** Backend: `python -m pytest tests -q`
-   (path `core/tests` until Phase 2 moves it). MCP:
-   `python -m pytest mcp_server/tests -q`. Frontend:
+5. **Green gates before moving on.** Backend: `python -m pytest tests -q`.
+   MCP: `python -m pytest mcp_server/tests -q`. Frontend:
    `npm run lint && npm run typecheck && npm run test && npm run build`
    (+ `npx playwright test` where stated).
 6. **No commits or pushes without owner approval.** Prepare the commit,
@@ -141,14 +140,15 @@ dotfiles, and the six working directories (`core/`, `agents/`, `api/`,
 
 **Steps**
 
-1. **`pyproject.toml` replaces `requirements.txt`.** Project metadata,
+1. **`pyproject.toml` replaces `requirements.txt` — completed.** Project metadata,
    runtime dependencies (fastapi, uvicorn, httpx, pydantic, anthropic,
    python-dotenv, psycopg), a `dev` extra (pytest), and pytest configuration
-   (`testpaths = ["tests", "mcp_server/tests"]`). Update README quickstart
-   (`pip install -e .[dev]`), CI install step, and delete `requirements.txt`.
+   now live in `pyproject.toml`. Pytest discovers
+   `["tests", "mcp_server/tests"]`. README quickstart and CI use
+   `pip install -e .[dev]`; root `requirements.txt` is removed.
    `mcp_server/requirements.txt` stays (it is a self-contained tool).
-2. **Unified `tests/` tree.** `core/tests/` currently mixes engine, agent,
-   API, and e2e tests. Move to:
+2. **Unified `tests/` tree — completed.** The previous backend test tree mixed
+   engine, agent, API, and e2e tests. Move to:
    - `tests/core/` — `test_engine.py`, `test_profile.py`,
      `test_offers_catalog.py`, `test_offer_verification.py`
    - `tests/agents/` — `test_advisor_guardrail.py`, `test_llm_client.py`
@@ -159,22 +159,25 @@ dotfiles, and the six working directories (`core/`, `agents/`, `api/`,
    Fix relative fixture paths, then update **every** reference:
    `.github/workflows/ci.yml`, README, `docs/`, the MCP
    `project_health_check` allowlist in `mcp_server/project_tools.py` (+ its
-   tests). Grep for `core/tests` afterwards — zero live refs.
-3. **`scripts/`.** `scripts/dev.ps1` + `scripts/dev.sh` (start mock OB, API,
-   frontend — three processes, one command) and `scripts/check.ps1` +
-   `scripts/check.sh` (the full verify sweep in order, fail-fast). Document
-   in README. No new dependencies — plain shell/PowerShell.
-4. **Docs consolidation.** Move `PLAN.md` → `docs/PLAN.md` and
-   `PROJECT_PROGRESS.md` → `docs/PROGRESS.md`; refresh both to describe the
-   post-swap reality (one frontend, new test layout) and link them from
-   README. Root keeps README only. `docs/` then holds: PLAN, PROGRESS,
+   tests). Grep for the retired backend test path afterwards — zero live refs.
+3. **`scripts/` — completed.** `scripts/dev.ps1` + `scripts/dev.sh` start
+   mock OB, API, and frontend as three processes from one command.
+   `scripts/check.ps1` + `scripts/check.sh` run backend tests, MCP tests, and
+   the frontend lint/typecheck/unit/build gate in fail-fast order, with an
+   optional E2E flag for live-service Playwright checks. README documents both
+   paths. No new dependencies — plain shell/PowerShell.
+4. **Docs consolidation — completed.** The root execution plan moved to
+   `docs/PLAN.md`, and the root progress log moved to `docs/PROGRESS.md`.
+   README now links the docs map, the moved docs describe the post-swap reality
+   (one frontend, new test layout, developer scripts), and MCP doc search
+   follows the consolidated docs location. Root keeps README only. `docs/`
+   now holds: PLAN, PROGRESS,
    FRONTEND_V2_SPEC (completed), EVOLUTION_PLAN (this file),
    PRODUCTION_READINESS, DATA_PRODUCTS, DEMO_SCRIPT, DEMO_CHECKLIST.
-5. **Hygiene pass.** Remove dead code and stale references found by the
-   moves; ensure `.env.example` documents every env var the code reads
-   (`ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, `DATABASE_URL`,
-   `MOCK_OB_BASE_URL`, `OPEN_BANKING_PROVIDER`, `JOURNEY_STORE_MAX`,
-   `APPLICATION_STORE_MAX`, auth TTLs); no secrets anywhere.
+5. **Hygiene pass — completed.** Stale live references from the test move were
+   cleaned up, `.env.example` now documents the backend, frontend, persistence,
+   provider, store-cap, and simulated-auth env vars the code reads, and no
+   new secrets were added.
 
 **Acceptance:** root contains no loose planning files; tests run from the new
 tree with identical counts; scripts work on Windows (PowerShell) and POSIX.
@@ -192,28 +195,32 @@ number-fidelity guardrail authoritative.
 
 **Steps**
 
-1. `agents/llm_client.py`: add tool-calling support — pass tool definitions,
-   run the `tool_use` → execute → `tool_result` loop (max 5 rounds, then
-   force a final text answer), aggregate usage across rounds. Keep lazy
-   imports; everything must import without an API key.
-2. `agents/advisor.py`: slim the initial context to the profile summary and
-   per-offer headlines (institution, product, structure, status, installment,
-   APR, `rate_verified`). Expose deterministic tools backed by existing code:
-   `simulate_scenario` (`advisor_tools.simulate`), `get_offer_detail`,
-   `get_payment_schedule`, and `evaluate_dbr` (`core/dbr.py`). Tool handlers
-   validate inputs and return engine JSON only.
-3. Guardrail update: the allowed-number set = initial context ∪ every tool
-   result returned during the loop. Retry + flagged safe-fallback behavior
-   unchanged (`guardrail_fallback: true` end-to-end).
-4. Trace: each tool round appends a `TOOL_CALLED` event (existing machinery
-   in `api/main.py` / `agents/events.py`) with tool name and round number —
-   metadata only, never amounts in log lines.
-5. Prompt caching: mark the system prompt and tool definitions with
-   `cache_control` breakpoints; usage payload already tracks cache tokens —
-   assert they flow through.
-6. Tests (no API key needed): a scripted fake LLM client drives the loop —
-   asserts tool dispatch, round cap, usage aggregation, guardrail over the
-   union set, event recording, and the fallback path.
+1. **LLM client tool loop — completed.** `agents/llm_client.py` now accepts
+   tool definitions and deterministic handlers, runs the
+   `tool_use` → execute → `tool_result` loop, forces a final text answer after
+   the configured round cap, and aggregates usage across model calls. Lazy
+   imports are preserved, and fake-client tests cover the loop without an API
+   key.
+2. **Advisor deterministic handlers — completed.** `agents/advisor.py` now
+   uses a slim initial context (profile summary + per-offer headlines) and
+   exposes `simulate_scenario`, `get_offer_detail`, `get_payment_schedule`,
+   and `evaluate_dbr` as deterministic tool handlers. Tool inputs are
+   validated and tool outputs come only from existing engine/tool code.
+3. **Guardrail tool-result union — completed.** The allowed-number set is now
+   initial context ∪ every deterministic tool result returned during the tool
+   loop. Retry + flagged safe-fallback behavior remains unchanged
+   (`guardrail_fallback: true` end-to-end).
+4. **Advisor tool trace — completed.** API chat now records each advisor tool
+   call as a `TOOL_CALLED` event with tool name, round number, and error flag
+   only — no tool input amounts or output values in the event payload.
+5. **Prompt caching — completed.** Anthropic requests now mark the system prompt
+   and final tool definition with `cache_control` breakpoints; DeepSeek
+   compatibility requests stay plain, and fake-client tests assert cache-token
+   usage aggregation.
+6. **Tests — completed.** Scripted fake LLM tests assert tool dispatch, round
+   cap, prompt-cache payload shape, usage aggregation, guardrail over the union
+   set, metadata-only event recording, fallback behavior, and the compact
+   advisor-context payload regression.
 
 **Acceptance:** advisor answers what-if questions by calling `simulate_scenario`
 itself; chat context payload shrinks (extend the existing payload-size
@@ -223,24 +230,29 @@ regression test); all guardrail tests green.
 
 **Steps**
 
-1. `core/profile.py`: add an optional `categorizer` callback parameter
-   (injected by callers — `core/` itself imports nothing new). Heuristics
-   remain the default and the fallback; the callback may only relabel the
-   *category* of ambiguous descriptions, never amounts, dates, or decisions.
-2. `agents/categorizer.py`: batch LLM categorization of ambiguous
-   descriptions into the fixed category enum; strict JSON output parsing;
-   on any error return no relabels (heuristics stand). Lazy imports.
-3. `agents/orchestrator.py`: wire the categorizer when a key is configured;
-   profile-agent events report counts of LLM-categorized transactions
-   (`finding` events, Arabic).
-4. Labeled dataset `db/categorizer_labels.json` (description → expected
-   category, built from the three personas) + deterministic tests with a fake
-   client; an accuracy comparison vs heuristics runs only when a key is
-   present (skipped otherwise).
+1. **Core callback seam — completed.** `core/profile.py` accepts an optional
+   `categorizer` callback injected by callers; `core/` imports nothing new.
+   Heuristics remain the default and fallback, and the callback may only
+   relabel the *category* of ambiguous descriptions, never amounts, dates, or
+   decisions.
+2. **Categorizer wrapper — completed.** `agents/categorizer.py` batches
+   descriptions into the fixed category enum, sends only description +
+   direction, parses strict JSON, and returns no relabels on any error.
+3. **Orchestrator wiring — completed.** `agents/orchestrator.py` runs the
+   categorizer only when an LLM provider is configured, sends ambiguous
+   descriptions only, and emits Arabic profile-agent events with metadata
+   counts only.
+4. **Label dataset + optional live accuracy gate — completed.**
+   `db/categorizer_labels.json` captures seeded persona descriptions and
+   expected categories; deterministic fake-client tests cover strict parsing,
+   safe fallback, prompt fields, and the dataset schema. A live accuracy test
+   compares the categorizer against the seeded labels and the deterministic
+   heuristic baseline, and skips unless an LLM provider is configured.
 
 **Acceptance:** journey output is byte-identical when no key is configured;
 with the fake client, relabeled categories flow into the profile while every
-amount stays untouched (asserted).
+amount stays untouched (asserted). The live accuracy gate exists but does not
+run without provider configuration.
 
 ### 3C. Structured logging + journey-scoped request IDs
 
@@ -263,22 +275,23 @@ traced across log lines by `journey_id`; canary test green.
 
 **Steps**
 
-1. **Golden-journey snapshots.** For each persona, run the in-process journey
-   (as `tests/api/test_end_to_end.py` does) and snapshot the response payload
-   minus volatile fields (`journey_id`, timestamps) into
-   `tests/fixtures/golden/`. Any engine or payload change that alters demo
-   output now fails loudly with a readable diff and requires a deliberate
-   fixture update.
-2. **CI overhaul** (`.github/workflows/ci.yml`):
-   - backend job: unchanged, on the new `tests/` path;
-   - mcp job: `pytest mcp_server/tests -q`;
-   - frontend job: `lint`, `typecheck`, `test` (Vitest), `build`;
-   - e2e job: boot mock OB + API in the background (no LLM key —
-     journey/simulator/application specs only, chat spec skipped), then
-     `npx playwright test`; upload the Playwright report on failure.
-3. **Containerization.** One `Dockerfile` for the API and one for mock OB
-   (slim Python base, non-root user); a `docker-compose.prod.yml` that runs
-   db + both services for a one-command local prod-shape check.
+1. **Golden-journey snapshots — completed.** For each persona, the in-process
+   journey snapshot test stores the response payload minus volatile fields
+   (`journey_id`, timestamps) in `tests/fixtures/golden/`. Any engine or
+   payload change that alters demo output now fails loudly with a readable diff
+   and requires a deliberate fixture update. The snapshot test also asserts raw
+   transaction fields are not present.
+2. **CI overhaul — completed.** `.github/workflows/ci.yml` now has separate
+   backend, MCP, frontend, and live-service Playwright jobs. The e2e job boots
+   mock Open Banking + the API in the background, waits for `/healthz`, lets
+   Playwright start the Next.js frontend, and uploads Playwright reports plus
+   service logs on failure.
+3. **Containerization — completed.** `Dockerfile.api` and
+   `Dockerfile.mock-open-banking` use Python 3.12 slim images and non-root
+   users. `.dockerignore` keeps local secrets, caches, dependency folders, and
+   private tooling out of the build context. `docker-compose.prod.yml` runs
+   Postgres + mock Open Banking + the API with health checks, initializes
+   `db/schema.sql`, and wires the API to the mock OB service and database.
 4. **Deploy [OWNER]** (D5 — flag any cost > $50/month before committing):
    - Postgres → Neon free tier; run `db/schema.sql`.
    - API + mock OB → one small host (Fly.io / Railway / small VM) with
@@ -350,7 +363,7 @@ Each step is sized to land as one reviewable commit.
 | Risk | Mitigation |
 |---|---|
 | Brand re-skin regresses v2 contrast/tests | Token-only change + component tests + WCAG check in Phase 1 step 1 |
-| The swap breaks CI or local workflows | Grep gates for retired frontend path, retired port, and `core/tests`; tag before deleting; CI on a branch first |
+| The swap breaks CI or local workflows | Grep gates for retired frontend path, retired port, and backend test path; tag before deleting; CI on a branch first |
 | Tool-use loop weakens the guardrail | Allowed set is strictly context ∪ tool results; fallback path unchanged; fake-client tests cover the union logic |
 | Public URL before rates are verified | noindex + permanent demo framing + honest `/status`; `ready_for_public_demo` stays the gate |
 | LLM cost on a public endpoint | Prompt caching (3A.5), slim context, per-IP throttle, usage recorded per journey |

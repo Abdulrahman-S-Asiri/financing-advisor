@@ -5,9 +5,10 @@ This file records completed implementation phases, verification status, and the 
 ## Current Status
 
 - Branch: `master`
-- Latest documented phase: Frontend v2 promotion into `frontend/`
+- Latest documented phase: Phase 4 deployment groundwork — containerized backend services
 - Main app flow: consent simulation, live journey events, financial dashboard, offers marketplace, what-if simulator, advisor chat, simulated application tracker, and route-persistent journey state.
 - Frontend identity: ATHAR / أثر is the official website identity, using Midnight Navy, Dune Gold, Sand White, Ink, the decision-dot mark, and the approved typography stack.
+- Repository shape: one live frontend in `frontend/`, Python dependencies in `pyproject.toml`, backend tests under `tests/`, and planning docs under `docs/`.
 - Local private files are ignored by `.gitignore`, including `.env`, `.venv/`, frontend env files, Next cache, and dependency folders.
 
 ## Completed Phases
@@ -42,7 +43,7 @@ This file records completed implementation phases, verification status, and the 
 | Offer catalog validation gate | Done | `core/offers_catalog.py` validates fields, types, enums, ranges, unknown keys, and duplicate ids; the API fails startup with readable errors and MCP tooling shares the gate. |
 | Bounded in-memory stores | Done | Journey and application stores are LRU-bounded (default 500, env-overridable); Postgres reload on miss unchanged. |
 | Health endpoint | Done | `GET /healthz` reports version, offer count, and config booleans only — tested against secret leakage. |
-| Backend/frontend contract test | Done | Payload key sets pinned to `core/tests/fixtures/frontend_contract_keys.json`, mirroring frontend types; drift fails with named keys. |
+| Backend/frontend contract test | Done | Payload key sets pinned to `tests/fixtures/frontend_contract_keys.json`, mirroring frontend schemas; drift fails with named keys. |
 | Guardrail fallback surfaced | Done | `guardrail_fallback` flag flows from the advisor through chat JSON and the SSE done frame; chat renders flagged safe replies as marked amber bubbles. |
 | Full website shell | Done | Landing page, shared nav + footer with demo disclaimer, IBM Plex Sans Arabic, Arabic error/404 pages. |
 | Journey route split | Done | Journey now runs across `/journey`, `/journey/analysis`, `/journey/offers`, and `/journey/decision`, with `?persona=` preselect and offer-detail back-link state survival. |
@@ -50,6 +51,23 @@ This file records completed implementation phases, verification status, and the 
 | Official ATHAR visual identity | Done | Frontend routes use ATHAR / أثر branding, navy/gold/sand/ink tokens, SVG logo variants, and Space Grotesk / IBM Plex Sans Arabic / IBM Plex Mono typography. |
 | Frontend v2 implementation | Done | Route-split journey, zod API boundaries, Zustand session persistence, UI kit tests, and Playwright smoke coverage are implemented. |
 | Frontend v2 promotion | Done | Rebuilt frontend is promoted to `frontend/` on :3000; the prior frontend is recoverable through the `frontend-v1-final` tag. |
+| Python packaging metadata | Done | Root dependencies and pytest configuration now live in `pyproject.toml`; local and CI setup use editable install with the `dev` extra. |
+| Unified backend test tree | Done | Backend tests moved from the engine package into `tests/core`, `tests/agents`, `tests/api`, and `tests/fixtures`; CI and MCP health checks run `pytest tests -q`. |
+| Developer scripts | Done | `scripts/dev.*` starts the local demo stack, and `scripts/check.*` runs backend, MCP, and frontend verification in fail-fast order. |
+| Docs consolidation | Done | Planning docs moved to `docs/PLAN.md` and `docs/PROGRESS.md`; README now links the docs map. |
+| Repository hygiene | Done | `.env.example` documents runtime env vars, live stale test-path references are cleaned up, and ignored private notes remain untouched. |
+| LLM tool-loop foundation | Done | `agents/llm_client.py` can run Anthropic-style tool calls through deterministic handlers, aggregate usage, and force a final answer after the round cap. |
+| Advisor deterministic tools | Done | Chat can call simulation, offer detail, payment schedule, and DBR tools; guardrail checks include tool-result numbers; API trace logs metadata-only tool events. |
+| Advisor prompt caching | Done | Anthropic advisor requests mark the system prompt and final tool definition with cache-control breakpoints; DeepSeek compatibility requests remain plain. |
+| Advisor tool-loop regression tests | Done | Fake-client and end-to-end tests cover cache-token usage aggregation, provider-specific cache payloads, tool traces, guardrails, fallback behavior, and compact chat context size. |
+| Categorizer callback seam | Done | `core.profile.extract_profile` accepts an injected category-only callback while keeping deterministic heuristics as the default fallback. |
+| Transaction categorizer wrapper | Done | `agents/categorizer.py` sends only description and direction, parses strict JSON labels, and returns no relabels on malformed output or provider errors. |
+| Categorizer label dataset | Done | `db/categorizer_labels.json` labels seeded persona descriptions; fake-client tests cover prompt fields, fallback behavior, and schema constraints. |
+| Categorizer orchestration | Done | `agents.orchestrator` runs the categorizer only when an LLM provider is configured, emits metadata-only Arabic profile events, and keeps no-key journeys byte-identical to the disabled path. |
+| Categorizer live accuracy gate | Done | A provider-gated test compares live categorizer labels against seeded fixtures and the deterministic heuristic baseline, skipping cleanly without an LLM provider. |
+| Golden journey snapshots | Done | Three demo persona payloads are stored under `tests/fixtures/golden/`; snapshot tests strip volatile fields and assert raw transaction fields stay out of payloads. |
+| CI live-service Playwright gate | Done | GitHub Actions now runs backend, MCP, frontend, and live-service Playwright jobs; the E2E job starts mock Open Banking and API services, waits on `/healthz`, and uploads browser/service logs on failure. |
+| Containerized backend services | Done | `Dockerfile.api`, `Dockerfile.mock-open-banking`, `.dockerignore`, and `docker-compose.prod.yml` provide a production-shaped local stack for Postgres, mock Open Banking, and the API with health checks. |
 
 ## Recent Commits
 
@@ -80,6 +98,8 @@ Before closing each phase:
 
 - Run frontend lint, typecheck, unit tests, and build.
 - Run backend tests.
+- Prefer `.\scripts\check.ps1` or `bash scripts/check.sh` for the complete
+  local sweep.
 - Run Git whitespace checks.
 - Check local frontend and backend health when servers are running.
 - Commit and push the completed phase.
@@ -87,6 +107,9 @@ Before closing each phase:
 
 ## Next Planned Slice
 
-Continue end-to-end journey QA on the promoted frontend and verified lender
-offer review. Real Nafath, licensed Open Banking access, and lender submission
-remain external partnership/compliance work before production launch.
+Phase 4 deploy support is next, but it is owner-gated because it can involve
+hosting accounts, secrets, and cost. If deployment is not approved yet, the
+next code slice is structured logging and journey-scoped request IDs. Verified
+lender offer review remains the main external data task. Real Nafath,
+licensed Open Banking access, and lender submission remain external
+partnership/compliance work before production launch.

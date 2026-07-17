@@ -15,11 +15,46 @@ output and is forbidden from producing numbers not in its context.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -e .[dev]
 
 # Prove the engine before running anything:
-pytest core/tests -q
+pytest tests -q
+```
 
+Run the full local verification sweep:
+
+```bash
+# Windows PowerShell
+.\scripts\check.ps1
+
+# macOS/Linux/Git Bash
+bash scripts/check.sh
+```
+
+Both check scripts run backend tests, MCP tests, frontend lint, typecheck,
+unit tests, and build in order. Add `-IncludeE2E` on PowerShell or
+`--include-e2e` on bash when the local services are already running and you
+want the Playwright gate too.
+
+GitHub Actions runs the same backend, MCP, and frontend gates, plus a
+live-service Playwright job that starts mock Open Banking and the API before
+running browser E2E.
+
+Start the full local demo stack with one command:
+
+```bash
+# Windows PowerShell
+.\scripts\dev.ps1
+
+# macOS/Linux/Git Bash
+bash scripts/dev.sh
+```
+
+The dev scripts start mock Open Banking on :8100, the platform API on :8000,
+and the ATHAR frontend on :3000. Manual startup is still useful when you want
+separate terminal control:
+
+```bash
 # Terminal 1 — mock Open Banking (AIS) service
 uvicorn mock_open_banking.main:app --port 8100
 
@@ -45,6 +80,36 @@ Advisor chat (`POST /advisor/chat`) needs `ANTHROPIC_API_KEY` in `.env`
 (copy `.env.example`). When using DeepSeek through the Anthropic-compatible
 API, also set `ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic`.
 Everything else runs without any key.
+
+Run the production-shaped backend stack in containers:
+
+```bash
+docker compose -f docker-compose.prod.yml up --build
+curl http://127.0.0.1:8000/healthz
+```
+
+This starts Postgres, mock Open Banking, and the API with health checks and
+non-root Python containers. The frontend still runs from `frontend/`; set
+`BACKEND_URL=http://127.0.0.1:8000` when you want it to point at the
+containerized API. The compose defaults are local-only development
+credentials; real deployment secrets belong in the hosting platform, not in
+the repository.
+
+## Project docs
+
+- [Execution plan](docs/PLAN.md) — product scope, architecture, testing
+  strategy, and prioritized roadmap.
+- [Progress log](docs/PROGRESS.md) — completed phases, verification pattern,
+  and next planned slice.
+- [Evolution plan](docs/EVOLUTION_PLAN.md) — ordered demo-to-platform build
+  plan.
+- [Frontend v2 spec](docs/FRONTEND_V2_SPEC.md) — completed frontend rebuild
+  specification.
+- [Production readiness](docs/PRODUCTION_READINESS.md) and
+  [data products](docs/DATA_PRODUCTS.md) — production architecture and outcome
+  data roadmap.
+- [Demo script](docs/DEMO_SCRIPT.md) and
+  [demo checklist](docs/DEMO_CHECKLIST.md) — rehearsal and screenshot flow.
 
 ## Architecture
 
@@ -93,8 +158,10 @@ api/  ──────────────  the platform API (:8000)
    |                           duplicate ids fail loudly at load time)
    |
    └──> agents/             LLM layer (lazy — engine runs without it)
-            advisor.py      narrates engine output, hard no-invented-numbers rule
-            llm_client.py   Anthropic-compatible wrapper, endpoint/model from env
+            advisor.py      narrates engine output, calls deterministic tools,
+                            hard no-invented-numbers rule
+            categorizer.py  strict category-only transaction label wrapper
+            llm_client.py   Anthropic-compatible wrapper with tool loop + caching
 db/   seed_offers.json (JSON-first offers repo) + schema.sql (Postgres path)
 ```
 
@@ -106,6 +173,10 @@ Mono for labels and data.
 Set `DATABASE_URL` to enable Postgres-backed journey snapshots, ordered agent
 trace events, and application status history. Without it, the API keeps the
 same in-memory hot path for local demos and CI.
+
+`docker-compose.prod.yml` wires `DATABASE_URL` to the included Postgres service
+and initializes `db/schema.sql`, so it is the quickest local check of the
+persistent backend shape.
 
 Streaming endpoints use Server-Sent Events. Each frame includes `id`, `retry`,
 `event`, and JSON `data`; journey event IDs match the ordered `sequence`

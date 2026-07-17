@@ -144,7 +144,7 @@ The shared runtime contracts live in
 `frontend/src/lib/schemas.ts` as zod schemas (`JourneyResponse`,
 `OfferMatch`, `AgentEvent`, `FinancialHealth`, `CostBreakdown`, `DbrDecision`,
 `SimulationResponse`, `ApplicationRecord`, chat frames). The backend pins
-these key sets in `core/tests/fixtures/frontend_contract_keys.json` — the zod
+these key sets in `tests/fixtures/frontend_contract_keys.json` — the zod
 schemas must accept exactly those keys (unknown keys: `passthrough()`, missing
 required keys: hard error). Nullables stay nullable (`monthly_installment`
 etc. are null for ineligible matches).

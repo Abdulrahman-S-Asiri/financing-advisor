@@ -4,9 +4,8 @@ Run through this before any demo or screenshot session.
 
 ## Pre-demo verification (10 minutes)
 
-- [ ] `.venv\Scripts\python.exe -m pytest core\tests mcp_server\tests -q` — all green.
-- [ ] `cd frontend; npm run lint; npm run build` — clean.
-- [ ] Three services running (mock OB :8100, API :8000, frontend :3000).
+- [ ] `.\scripts\check.ps1` — backend, MCP, frontend lint/typecheck/unit/build all green.
+- [ ] `.\scripts\dev.ps1` — three services running (mock OB :8100, API :8000, frontend :3000).
 - [ ] `/status` shows: service card green, LLM provider **مفعل** (if chat is
       part of the demo), Open Banking = mock.
 - [ ] Expected and honest: rate verification shows **0/8** and "جاهز للعرض

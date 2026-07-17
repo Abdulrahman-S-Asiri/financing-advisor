@@ -3,6 +3,8 @@
 This is the working execution plan for the project. It is written so that any
 future engineering session can continue the work without other context: what
 the product is, what exists, how it is verified, and what comes next.
+Repository planning documents live under `docs/`; the root `README.md` is the
+public entry point.
 
 **The one non-negotiable engineering rule, repeated everywhere:**
 *The model explains; the code calculates.* Every number — riyal, ratio, APR,
@@ -120,7 +122,7 @@ scope, by design — production auth is Nafath, see §14).
 Five agents (profile, matching, cost, advisor, application) — thin
 orchestration over deterministic tools, emitting ordered Arabic events
 (`agent_started`, `tool_called`, `finding`, `agent_completed`) that the UI
-renders live. The advisor is the only LLM surface:
+renders live. The advisor is the only active LLM surface today:
 
 - Context = engine outputs only (no raw transactions; PDPL minimization).
 - **Number-fidelity guardrail:** every reply's numbers must exist in the
@@ -128,8 +130,13 @@ renders live. The advisor is the only LLM surface:
   tolerance 5e-5); violations trigger one retry, then a deterministic Arabic
   safe-fallback reply flagged `guardrail_fallback: true` end-to-end — the
   chat UI renders it as a marked amber bubble.
-- Future (unbuilt): advisor tool-use loop replacing context stuffing; LLM
-  transaction categorizer (categories only, never amounts).
+- Advisor tool-use loop: chat starts from a slim engine context, calls
+  deterministic tools for simulations, offer detail, schedules, and DBR checks,
+  records metadata-only tool traces, and uses Anthropic prompt caching where
+  supported.
+- Transaction categorizer: core callback seam, strict wrapper, seeded label
+  dataset, orchestrator wiring, metadata-only events, and no-key regression
+  tests are in place. It may return categories only, never amounts.
 
 ## 8. MCP integration (developer tooling)
 
@@ -164,7 +171,7 @@ setup and the tool list live in `mcp_server/README.md` and (local-only)
   validation in MCP tools.
 - **Number-fidelity guardrail** with percent equivalence + structured
   fallback flag (§7).
-- **Contract fixture** (`core/tests/fixtures/frontend_contract_keys.json`):
+- **Contract fixture** (`tests/fixtures/frontend_contract_keys.json`):
   backend payload keys are pinned against the frontend types; drift fails CI
   with named keys. Update fixture + `types.ts` together.
 - `rate_verified:false` propagates to every surface; nothing placeholder can
@@ -172,15 +179,28 @@ setup and the tool list live in `mcp_server/README.md` and (local-only)
 
 ## 11. Testing strategy
 
-- `python -m pytest core/tests -q` — engine math (hand-computed fixtures),
+- `python -m pytest tests -q` — engine math (hand-computed fixtures),
   guardrail (incl. percent + fallback), end-to-end journey over in-process
   ASGI (no ports, no API key), catalog gate, store eviction, healthz,
-  contract, payload-size regressions. All new endpoints get tests here.
+  contract, payload-size regressions. New API endpoint tests live in
+  `tests/api/`; engine tests live in `tests/core/`; agent tests live in
+  `tests/agents/`.
 - `python -m pytest mcp_server/tests -q` — tool validation and allowlist.
 - `cd frontend && npm run lint && npm run typecheck && npm run test && npm run build`
   — the frontend gate.
-- CI (GitHub Actions): backend tests with Postgres service + frontend lint,
-  typecheck, unit tests, and build. Keep every phase green before moving on.
+- `.\scripts\check.ps1` on Windows PowerShell, or `bash scripts/check.sh` on
+  POSIX shells, runs the backend, MCP, and frontend gates in fail-fast order.
+  Use `-IncludeE2E` / `--include-e2e` only when local services are already
+  running.
+- `.\scripts\dev.ps1` on Windows PowerShell, or `bash scripts/dev.sh` on
+  POSIX shells, starts mock Open Banking, the API, and the frontend for local
+  demos.
+- Python dependencies are declared in `pyproject.toml`; local setup uses
+  `pip install -e .[dev]`. The MCP server keeps its own requirements file.
+- CI (GitHub Actions): backend tests with Postgres service, MCP tests,
+  frontend lint/typecheck/unit/build, and a live-service Playwright job that
+  starts mock Open Banking + the API before running browser E2E. Keep every
+  phase green before moving on.
 
 ## 12. Security rules
 
@@ -219,9 +239,14 @@ setup and the tool list live in `mcp_server/README.md` and (local-only)
 | ✅ | Platform hardening | Catalog validation gate, LRU-bounded stores, `/healthz`, backend↔frontend contract test, guardrail percent fix + fallback flag |
 | ✅ | Full website | Landing + nav/footer + `/journey` move + persona preselect + `/docs` + `/status` + error/404 + Arabic webfont |
 | ✅ | Frontend v2 promotion | Route-split journey, session storage persistence, zod response validation, UI tests, and Playwright smoke coverage promoted into `frontend/` |
+| ✅ | Repository organization | Python packaging metadata, unified `tests/` tree, developer scripts, planning docs consolidated under `docs/`, env docs, and stale-reference cleanup |
 | ⏳ | Data review (external) | Replace placeholder rates from official pages (target ≥15 offers), fill `source_url`/`retrieved_at`, flip `rate_verified` only with a real source |
 | ⏳ | Regulatory verification (external) | Arabic rulebook check of DBR tiers, tenor cap, fee cap |
-| 🔜 | Advisor tool-use loop | Engine-computed what-ifs via tool calls instead of context stuffing |
+| ✅ | Advisor tool-use loop | LLM client loop, deterministic advisor handlers, guardrail union, metadata-only traces, prompt caching, and compact context regression tests |
+| ✅ | Transaction categorizer | Core callback seam, strict wrapper, seeded labels, orchestrator wiring, fake-client tests, no-key regression, and optional live accuracy gate |
+| ✅ | Golden-journey snapshots | Three demo persona payloads are locked under `tests/fixtures/golden/` with volatile fields stripped and raw transaction fields excluded |
+| ✅ | CI quality gates | GitHub Actions runs backend, MCP, frontend, and live-service Playwright jobs with service logs uploaded on E2E failure |
+| ✅ | Containerized backend services | API and mock Open Banking Dockerfiles plus `docker-compose.prod.yml` run Postgres, mock OB, and API with health checks and non-root containers |
 | 🔜 | Production edges | Nafath identity, licensed TPP, lender submission, hosting — all external-partner work |
 
 ## 15. Priority table (next work, ranked)
@@ -229,11 +254,7 @@ setup and the tool list live in `mcp_server/README.md` and (local-only)
 | # | Task | Why | Size |
 |---|---|---|---|
 | 1 | Verified offers data pass | Unblocks public demo; everything else is ready | external, days |
-| 2 | Advisor tool-use loop | Cheaper tokens, engine-computed what-ifs | L |
-| 3 | Golden-journey snapshot tests per persona | Locks the demo output | S–M |
-| 4 | Expand CI to live-service Playwright gate when services are available | Catches wiring breaks pre-demo | M |
-| 5 | LLM transaction categorizer + labeled dataset | Flagship agentic capability | M–L |
-| 6 | Structured logging + journey-scoped request IDs | Observability + audit trail | M |
+| 2 | Structured logging + journey-scoped request IDs | Observability + audit trail | M |
 
 ## 16. Known risks
 
@@ -242,7 +263,7 @@ setup and the tool list live in `mcp_server/README.md` and (local-only)
 | Placeholder rates leak into screenshots | `rate_verified` flag on every surface; `/status` shows honest 0/8; `ready_for_public_demo` gate |
 | Journey state persistence can drift from backend contracts | zod schemas validate every response; Playwright covers offer-detail round-trip state survival |
 | SAMA rules drift from the current Arabic text | Rules isolated in `core/dbr.py` with rulebook citations; external verification pending |
-| Webfont fetch at build time needs network | CI has it; system-font stack remains the fallback; `next/font/local` is the offline escape hatch |
+| Custom ATHAR fonts may not be installed on every machine | CSS declares the ATHAR font stack and falls back to system fonts; production builds no longer fetch fonts at build time |
 | Analytics under LRU eviction shows recent-only activity | Documented on the endpoint and the status card label |
 | Regulatory misstep at launch | Demo/simulation framing everywhere until licensed; legal consult before real users or referral revenue |
 
@@ -256,11 +277,11 @@ machine · optional Postgres persistence · LRU-bounded stores · offer catalog
 validation gate · `/healthz` · backend↔frontend contract test · full website
 (landing, route-split journey, persona preselect, docs, status, error/404,
 nav/footer, Arabic webfont) · frontend unit tests and Playwright smoke
-coverage · MCP dev tooling with tests · CI.
+coverage · MCP dev tooling with tests · CI · containerized API/mock OB
+backend stack.
 
 **Not done (external / future):** verified offer rates (0/8 — the blocking
-item for public demo) · SAMA text re-verification · advisor tool-use loop ·
-transaction categorizer · real identity (Nafath),
+item for public demo) · SAMA text re-verification · real identity (Nafath),
 licensed Open Banking, lender APIs · hosting/deployment · approval-likelihood
 modeling (needs real consented outcomes).
 
