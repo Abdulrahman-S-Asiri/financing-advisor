@@ -1,5 +1,5 @@
 // Runtime validation of backend payloads. The backend contract is frozen and
-// pinned by core/tests/fixtures/frontend_contract_keys.json — if a schema here
+// pinned by tests/fixtures/frontend_contract_keys.json — if a schema here
 // rejects a real response, fix the schema, not the backend.
 import { z } from "zod";
 

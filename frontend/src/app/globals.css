@@ -59,9 +59,9 @@
   --color-gold: var(--athar-gold);
   --color-navy: var(--athar-navy);
   --color-sand: var(--athar-sand);
-  --font-sans: var(--font-plex), system-ui, sans-serif;
-  --font-display: var(--font-space), var(--font-plex), system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), "IBM Plex Mono", monospace;
+  --font-sans: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, system-ui, sans-serif;
+  --font-display: "Space Grotesk", "IBM Plex Sans Arabic", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "Cascadia Mono", Consolas, monospace;
   --shadow-athar: var(--shadow);
 }
 
@@ -79,7 +79,7 @@ body {
   margin: 0;
   background: var(--color-background);
   color: var(--color-ink);
-  font-family: var(--font-plex), system-ui, sans-serif;
+  font-family: var(--font-sans);
   text-align: start;
 }
 
