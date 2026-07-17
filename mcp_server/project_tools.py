@@ -28,8 +28,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # glob over the whole repo: source code has its own search tools.
 _DOC_GLOBS = (
     "README.md",
-    "PLAN.md",
-    "PROJECT_PROGRESS.md",
     "CLAUDE.md",
     "docs/*.md",
     "mcp_server/README.md",
@@ -123,7 +121,7 @@ def project_overview() -> dict:
             "mcp_server/": "This local MCP tooling — read-only, not part of the app runtime.",
         },
         "key_commands": {
-            "backend_tests": "python -m pytest core/tests -q",
+            "backend_tests": "python -m pytest tests -q",
             "mcp_tests": "python -m pytest mcp_server/tests -q",
             "api": "uvicorn api.main:app --port 8000",
             "mock_open_banking": "uvicorn mock_open_banking.main:app --port 8100",
@@ -135,7 +133,7 @@ def project_overview() -> dict:
             "offers_in_catalog": offer_count,
             "seeded_personas": len(PERSONAS),
             "api_routes": len(_routes(PROJECT_ROOT / "api" / "main.py")),
-            "backend_test_files": len(list((PROJECT_ROOT / "core" / "tests").glob("test_*.py"))),
+            "backend_test_files": len(list((PROJECT_ROOT / "tests").glob("**/test_*.py"))),
         },
         "docs": [str(p.relative_to(PROJECT_ROOT)) for p in _doc_files()],
     }
@@ -234,7 +232,9 @@ def inspect_config() -> dict:
         "notes": {
             "ANTHROPIC_API_KEY / DEEPSEEK_API_KEY": "Optional — only advisor chat needs one; everything else runs without keys.",
             "DATABASE_URL": "Optional — enables Postgres persistence; unset keeps the in-memory demo path.",
+            "BACKEND_URL": "Optional — frontend rewrite target; defaults to http://127.0.0.1:8000.",
             "MOCK_OB_BASE_URL": "Defaults to http://127.0.0.1:8100 when unset.",
+            "JOURNEY_STORE_MAX / APPLICATION_STORE_MAX": "Optional — LRU caps for in-memory demo stores.",
         },
     }
 
@@ -255,7 +255,7 @@ ALLOWED_CHECKS: dict[str, CheckSpec] = {
         "python", ("--version",), ".", 30, "Interpreter smoke check."
     ),
     "backend-tests": CheckSpec(
-        "python", ("-m", "pytest", "core/tests", "-q"), ".", 420,
+        "python", ("-m", "pytest", "tests", "-q"), ".", 420,
         "Full deterministic-engine and API contract test suite.",
     ),
     "mcp-tests": CheckSpec(

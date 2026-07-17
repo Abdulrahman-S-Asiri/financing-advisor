@@ -1,7 +1,7 @@
 """Backend<->frontend payload contract.
 
-The frontend types in frontend/src/features/journey/types.ts are hand-written
-mirrors of these payloads. This test pins the contract: every key the frontend
+The frontend schemas in frontend/src/lib/schemas.ts mirror these payloads.
+This test pins the contract: every key the frontend
 requires must be present, and the backend may not grow keys silently (new keys
 go into the fixture's 'optional' list deliberately, with a matching frontend
 decision). Failures print the exact missing/unexpected key names.
@@ -16,7 +16,7 @@ from api.main import app as api_app
 from mock_open_banking.main import app as ob_app
 
 FIXTURE = json.loads(
-    (Path(__file__).parent / "fixtures" / "frontend_contract_keys.json")
+    (Path(__file__).parents[1] / "fixtures" / "frontend_contract_keys.json")
     .read_text(encoding="utf-8")
 )
 

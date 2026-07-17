@@ -1,0 +1,346 @@
+{
+  "events": [
+    {
+      "agent": "financial_profile",
+      "created_at": "<timestamp>",
+      "journey_id": "<journey_id>",
+      "message_ar": "بدأ وكيل الملف المالي تحليل العمليات.",
+      "payload": {
+        "transaction_count": 127
+      },
+      "sequence": 1,
+      "type": "agent_started"
+    },
+    {
+      "agent": "financial_profile",
+      "created_at": "<timestamp>",
+      "journey_id": "<journey_id>",
+      "message_ar": "استدعاء أداة استخراج الراتب والالتزامات.",
+      "payload": {
+        "tool": "core.profile.extract_profile"
+      },
+      "sequence": 2,
+      "type": "tool_called"
+    },
+    {
+      "agent": "financial_profile",
+      "created_at": "<timestamp>",
+      "journey_id": "<journey_id>",
+      "message_ar": "تم تحديد الدخل والالتزامات المتكررة.",
+      "payload": {
+        "gross_salary": 6000.0,
+        "monthly_obligations": 2600.0,
+        "months_observed": 12,
+        "salary_bank": "Riyad Bank",
+        "total_monthly_income": 6000.0
+      },
+      "sequence": 3,
+      "type": "finding"
+    },
+    {
+      "agent": "financial_profile",
+      "created_at": "<timestamp>",
+      "journey_id": "<journey_id>",
+      "message_ar": "اكتمل تحليل الملف المالي.",
+      "payload": {},
+      "sequence": 4,
+      "type": "agent_completed"
+    },
+    {
+      "agent": "matching",
+      "created_at": "<timestamp>",
+      "journey_id": "<journey_id>",
+      "message_ar": "بدأ وكيل المطابقة اختبار العروض.",
+      "payload": {
+        "offer_count": 8
+      },
+      "sequence": 5,
+      "type": "agent_started"
+    },
+    {
+      "agent": "matching",
+      "created_at": "<timestamp>",
+      "journey_id": "<journey_id>",
+      "message_ar": "استدعاء محرك الأهلية لكل عرض.",
+      "payload": {
+        "requested_amount": 50000.0,
+        "requested_tenor_months": 36,
+        "tool": "core.eligibility.match_offer"
+      },
+      "sequence": 6,
+      "type": "tool_called"
+    },
+    {
+      "agent": "matching",
+      "created_at": "<timestamp>",
+      "journey_id": "<journey_id>",
+      "message_ar": "تم تصنيف العروض حسب الأهلية والتكلفة.",
+      "payload": {
+        "near_miss_count": 0,
+        "status_counts": {
+          "conditional": 0,
+          "eligible": 0,
+          "ineligible": 8,
+          "policy_review": 0
+        }
+      },
+      "sequence": 7,
+      "type": "finding"
+    },
+    {
+      "agent": "matching",
+      "created_at": "<timestamp>",
+      "journey_id": "<journey_id>",
+      "message_ar": "اكتملت مطابقة العروض.",
+      "payload": {},
+      "sequence": 8,
+      "type": "agent_completed"
+    },
+    {
+      "agent": "cost",
+      "created_at": "<timestamp>",
+      "journey_id": "<journey_id>",
+      "message_ar": "بدأ وكيل التكلفة مقارنة إجمالي السداد.",
+      "payload": {},
+      "sequence": 9,
+      "type": "agent_started"
+    },
+    {
+      "agent": "cost",
+      "created_at": "<timestamp>",
+      "journey_id": "<journey_id>",
+      "message_ar": "قراءة نتائج التسعير المحسوبة من المحرك.",
+      "payload": {
+        "tool": "core.cost.price_offer"
+      },
+      "sequence": 10,
+      "type": "tool_called"
+    },
+    {
+      "agent": "cost",
+      "created_at": "<timestamp>",
+      "journey_id": "<journey_id>",
+      "message_ar": "تم تحديد أرخص مسار متاح ومساحة القسط الجديدة.",
+      "payload": {
+        "max_affordable_new_installment": 0.0,
+        "priced_offer_count": 7
+      },
+      "sequence": 11,
+      "type": "finding"
+    },
+    {
+      "agent": "cost",
+      "created_at": "<timestamp>",
+      "journey_id": "<journey_id>",
+      "message_ar": "اكتملت مقارنة التكلفة.",
+      "payload": {},
+      "sequence": 12,
+      "type": "agent_completed"
+    },
+    {
+      "agent": null,
+      "created_at": "<timestamp>",
+      "journey_id": "<journey_id>",
+      "message_ar": "اكتملت رحلة تحليل التمويل.",
+      "payload": {
+        "journey_id": "<journey_id>"
+      },
+      "sequence": 13,
+      "type": "journey_completed"
+    }
+  ],
+  "financial_health": {
+    "breaches": [
+      "Salary-deduction obligations would be 43.3% of gross salary; cap is 33.33% (employee)."
+    ],
+    "max_affordable_new_installment": 0.0,
+    "monthly_obligations": 2600.0,
+    "non_real_estate_cap": 0.45,
+    "non_real_estate_ratio": 0.4333,
+    "policy_review": false,
+    "salary_linked_cap": 0.3333333333333333,
+    "salary_linked_ratio": 0.4333,
+    "tier": "<=15k",
+    "total_cap": 0.55,
+    "total_ratio": 0.4333
+  },
+  "journey_id": "<journey_id>",
+  "matches": [
+    {
+      "apr_effective": 0.0753,
+      "conditions": [
+        "Rate shown is a placeholder pending verification against the institution's published pricing."
+      ],
+      "institution": "Alinma Bank",
+      "monthly_installment": 1534.72,
+      "near_miss_suggestions": [],
+      "offer_id": "alinma-auto-ijarah",
+      "payment_schedule_months": 36,
+      "product": "Auto Lease (Ijarah)",
+      "rate_verified": false,
+      "reasons": [
+        "Salary-deduction obligations would be 68.9% of gross salary; cap is 33.33% (employee)."
+      ],
+      "status": "ineligible",
+      "structure": "ijarah",
+      "total_amount_payable": 55750.0
+    },
+    {
+      "apr_effective": 0.0811,
+      "conditions": [
+        "Rate shown is a placeholder pending verification against the institution's published pricing."
+      ],
+      "institution": "Riyad Bank",
+      "monthly_installment": 1547.22,
+      "near_miss_suggestions": [],
+      "offer_id": "riyad-auto-murabaha",
+      "payment_schedule_months": 36,
+      "product": "Auto Finance (Murabaha)",
+      "rate_verified": false,
+      "reasons": [
+        "Salary-deduction obligations would be 43.3% of gross salary; cap is 33.33% (employee)."
+      ],
+      "status": "ineligible",
+      "structure": "murabaha",
+      "total_amount_payable": 56200.0
+    },
+    {
+      "apr_effective": 0.0949,
+      "conditions": [
+        "Rate shown is a placeholder pending verification against the institution's published pricing."
+      ],
+      "institution": "Al Rajhi Bank",
+      "monthly_installment": 1576.39,
+      "near_miss_suggestions": [],
+      "offer_id": "alrajhi-personal-tawarruq",
+      "payment_schedule_months": 36,
+      "product": "Personal Finance (Tawarruq)",
+      "rate_verified": false,
+      "reasons": [
+        "Salary-deduction obligations would be 69.6% of gross salary; cap is 33.33% (employee)."
+      ],
+      "status": "ineligible",
+      "structure": "tawarruq",
+      "total_amount_payable": 57250.0
+    },
+    {
+      "apr_effective": 0.1027,
+      "conditions": [
+        "Rate shown is a placeholder pending verification against the institution's published pricing."
+      ],
+      "institution": "Alinma Bank",
+      "monthly_installment": 1593.06,
+      "near_miss_suggestions": [],
+      "offer_id": "alinma-personal-tawarruq",
+      "payment_schedule_months": 36,
+      "product": "Personal Finance (Tawarruq)",
+      "rate_verified": false,
+      "reasons": [
+        "Salary-deduction obligations would be 69.9% of gross salary; cap is 33.33% (employee)."
+      ],
+      "status": "ineligible",
+      "structure": "tawarruq",
+      "total_amount_payable": 57850.0
+    },
+    {
+      "apr_effective": 0.1086,
+      "conditions": [
+        "Rate shown is a placeholder pending verification against the institution's published pricing."
+      ],
+      "institution": "Saudi National Bank",
+      "monthly_installment": 1605.56,
+      "near_miss_suggestions": [],
+      "offer_id": "snb-personal-tawarruq",
+      "payment_schedule_months": 36,
+      "product": "Personal Finance (Tawarruq)",
+      "rate_verified": false,
+      "reasons": [
+        "Salary-deduction obligations would be 70.1% of gross salary; cap is 33.33% (employee)."
+      ],
+      "status": "ineligible",
+      "structure": "tawarruq",
+      "total_amount_payable": 58300.0
+    },
+    {
+      "apr_effective": 0.1401,
+      "conditions": [
+        "Rate shown is a placeholder pending verification against the institution's published pricing."
+      ],
+      "institution": "Emkan Finance",
+      "monthly_installment": 1672.22,
+      "near_miss_suggestions": [],
+      "offer_id": "emkan-personal-tawarruq",
+      "payment_schedule_months": 36,
+      "product": "Personal Finance (Tawarruq)",
+      "rate_verified": false,
+      "reasons": [
+        "Salary-deduction obligations would be 43.3% of gross salary; cap is 33.33% (employee)."
+      ],
+      "status": "ineligible",
+      "structure": "tawarruq",
+      "total_amount_payable": 60700.0
+    },
+    {
+      "apr_effective": 0.148,
+      "conditions": [
+        "Rate shown is a placeholder pending verification against the institution's published pricing."
+      ],
+      "institution": "Nayifat Finance",
+      "monthly_installment": 1688.89,
+      "near_miss_suggestions": [],
+      "offer_id": "nayifat-personal-tawarruq",
+      "payment_schedule_months": 36,
+      "product": "Personal Finance (Tawarruq)",
+      "rate_verified": false,
+      "reasons": [
+        "Salary-deduction obligations would be 43.3% of gross salary; cap is 33.33% (employee)."
+      ],
+      "status": "ineligible",
+      "structure": "tawarruq",
+      "total_amount_payable": 61300.0
+    },
+    {
+      "apr_effective": null,
+      "conditions": [
+        "Rate shown is a placeholder pending verification against the institution's published pricing."
+      ],
+      "institution": "SAB",
+      "monthly_installment": null,
+      "near_miss_suggestions": [],
+      "offer_id": "sab-personal-tawarruq",
+      "payment_schedule_months": 0,
+      "product": "Personal Finance (Tawarruq)",
+      "rate_verified": false,
+      "reasons": [
+        "Detected gross salary SAR 6,000 is below this product's minimum of SAR 7,000."
+      ],
+      "status": "ineligible",
+      "structure": "tawarruq",
+      "total_amount_payable": null
+    }
+  ],
+  "max_affordable_new_installment": 0.0,
+  "profile": {
+    "age": 35,
+    "confidence_level": "high",
+    "detection_notes": [],
+    "employment_type": "private",
+    "gross_salary": 6000.0,
+    "is_retiree": false,
+    "mohousing_or_redf_beneficiary": false,
+    "months_observed": 12,
+    "nationality": "saudi",
+    "obligation_trend": "stable",
+    "other_monthly_income_avg": 0.0,
+    "other_obligations": 0.0,
+    "persona_id": "khalid_rejected",
+    "real_estate_obligations": 0.0,
+    "salary_bank": "Riyad Bank",
+    "salary_linked_obligations": 2600.0,
+    "salary_stability_score": 1.0,
+    "total_monthly_income": 6000.0
+  },
+  "suggested_questions": [
+    "كيف أتعامل مع الأسعار غير المؤكدة؟"
+  ]
+}

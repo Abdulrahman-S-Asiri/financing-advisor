@@ -85,6 +85,11 @@ def test_allowlist_entries_are_fixed_argv():
         assert spec.timeout_seconds <= 600, name
 
 
+def test_backend_health_check_uses_unified_tests_tree():
+    spec = project_tools.ALLOWED_CHECKS["backend-tests"]
+    assert spec.args == ("-m", "pytest", "tests", "-q")
+
+
 def test_health_check_executes_python_version_smoke_check():
     result = project_tools.project_health_check("python-version")
     assert result["ok"] is True

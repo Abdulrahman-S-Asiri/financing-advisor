@@ -138,8 +138,12 @@ def test_seeded_journey_and_advisor_payloads_stay_lightweight():
         session["max_affordable"],
     )
     assert session["events"][-1].payload == {"journey_id": body["journey_id"]}
-    assert len(context) < 10_000
+    assert len(context.encode("utf-8")) < 6_500
     assert '"payment_schedule":' not in context
+    assert '"cost_breakdown":' not in context
+    assert '"dbr":' not in context
+    assert '"flat_rate_annual":' not in context
+    assert '"admin_fee_pct":' not in context
     assert '"payment_schedule_months":' in context
 
 
@@ -402,8 +406,8 @@ def test_advisor_chat_fails_loud_without_key(monkeypatch):
 
 def test_advisor_chat_stream_emits_guarded_sse(monkeypatch):
     monkeypatch.setattr(
-        "agents.advisor.llm_client.complete_with_usage",
-        lambda _system, _user: llm_client.LLMCompletion(
+        "agents.advisor.llm_client.complete_with_tools",
+        lambda _system, _user, _tools, _handlers: llm_client.LLMCompletion(
             text="أفضل عرض هو الخيار الظاهر في نتائج المحرك.",
             usage=llm_client.LLMUsage(
                 provider="deepseek",

@@ -58,7 +58,12 @@ def _match() -> MatchResult:
     return MatchResult(offer=offer, status=MatchStatus.ELIGIBLE, cost=cost)
 
 
-def _completion(text: str, input_tokens: int = 10, output_tokens: int = 5):
+def _completion(
+    text: str,
+    input_tokens: int = 10,
+    output_tokens: int = 5,
+    tool_results: list[llm_client.LLMToolResult] | None = None,
+):
     return llm_client.LLMCompletion(
         text=text,
         usage=llm_client.LLMUsage(
@@ -67,6 +72,7 @@ def _completion(text: str, input_tokens: int = 10, output_tokens: int = 5):
             input_tokens=input_tokens,
             output_tokens=output_tokens,
         ),
+        tool_results=tool_results or [],
     )
 
 
@@ -86,19 +92,27 @@ def _match_with_dbr() -> MatchResult:
 
 
 def test_guardrail_accepts_percent_form_of_context_decimals():
-    # Context carries apr_effective=0.102 and flat_rate_annual=0.05 as
-    # decimals; stating them as percentages must not trip the guardrail.
+    # Context carries apr_effective=0.102 as a decimal; stating it as a
+    # percentage must not trip the guardrail.
     context = advisor.build_context(_profile(), [_match()], 2_000)
 
     assert advisor.unsupported_numbers("النسبة السنوية الفعلية هي 10.2%", context) == []
     assert advisor.unsupported_numbers("The effective APR is 10.2%.", context) == []
-    assert advisor.unsupported_numbers("The flat rate is 5%.", context) == []
 
 
 def test_guardrail_accepts_two_decimal_percent_of_long_ratio():
-    # salary_linked_cap is 1/3 = 0.3333333... in context; the natural
-    # two-decimal phrasing is 33.33%.
+    # salary_linked_cap is 1/3 = 0.3333333... in the DBR tool result; the
+    # natural two-decimal phrasing is 33.33%.
     context = advisor.build_context(_profile(), [_match_with_dbr()], 2_000)
+    context += advisor._tool_results_context([
+        llm_client.LLMToolResult(
+            tool_use_id="toolu_1",
+            name="evaluate_dbr",
+            input={"new_installment": 1_000},
+            result={"salary_linked_cap": 1 / 3, "total_cap": 0.55},
+            round_number=1,
+        )
+    ])
 
     assert advisor.unsupported_numbers("الحد الأقصى هو 33.33%", context) == []
     assert advisor.unsupported_numbers("The total cap is 55%.", context) == []
@@ -125,11 +139,11 @@ def test_guardrail_percent_equivalence_needs_the_percent_sign():
 def test_advisor_does_not_retry_for_percent_phrasing(monkeypatch):
     calls = {"count": 0}
 
-    def fake_complete(_system, _user):
+    def fake_complete(_system, _user, _tools, _handlers):
         calls["count"] += 1
         return _completion("النسبة السنوية الفعلية هي 10.2% والقسط 1,597.22.")
 
-    monkeypatch.setattr(advisor.llm_client, "complete_with_usage", fake_complete)
+    monkeypatch.setattr(advisor.llm_client, "complete_with_tools", fake_complete)
 
     result = advisor.chat_with_trace(_profile(), [_match()], 2_000, "ما هي النسبة؟")
 
@@ -145,8 +159,8 @@ def test_advisor_retries_when_reply_contains_unsupported_number(monkeypatch):
     ])
     monkeypatch.setattr(
         advisor.llm_client,
-        "complete_with_usage",
-        lambda _system, _user: _completion(next(replies)),
+        "complete_with_tools",
+        lambda _system, _user, _tools, _handlers: _completion(next(replies)),
     )
 
     reply = advisor.chat(_profile(), [_match()], 2_000, "ما هو القسط؟")
@@ -159,8 +173,9 @@ def test_advisor_context_excludes_full_payment_schedule():
     match = context["matches"][0]
 
     assert "payment_schedule" not in match
+    assert "cost" not in match
     assert match["payment_schedule_months"] == 36
-    assert match["cost"]["monthly_installment"] == 1_597.22
+    assert match["monthly_installment"] == 1_597.22
 
 
 def test_advisor_returns_fallback_when_retry_still_contains_unsupported_number(
@@ -172,8 +187,8 @@ def test_advisor_returns_fallback_when_retry_still_contains_unsupported_number(
     ])
     monkeypatch.setattr(
         advisor.llm_client,
-        "complete_with_usage",
-        lambda _system, _user: _completion(next(replies)),
+        "complete_with_tools",
+        lambda _system, _user, _tools, _handlers: _completion(next(replies)),
     )
 
     result = advisor.chat_with_trace(_profile(), [_match()], 2_000, "ما هو القسط؟")
@@ -189,8 +204,8 @@ def test_guardrail_fallback_flag_is_false_on_clean_and_retried_replies(monkeypat
     ])
     monkeypatch.setattr(
         advisor.llm_client,
-        "complete_with_usage",
-        lambda _system, _user: _completion(next(replies)),
+        "complete_with_tools",
+        lambda _system, _user, _tools, _handlers: _completion(next(replies)),
     )
 
     result = advisor.chat_with_trace(_profile(), [_match()], 2_000, "ما هو القسط؟")
@@ -206,8 +221,8 @@ def test_advisor_trace_accumulates_usage_after_retry(monkeypatch):
     ])
     monkeypatch.setattr(
         advisor.llm_client,
-        "complete_with_usage",
-        lambda _system, _user: next(replies),
+        "complete_with_tools",
+        lambda _system, _user, _tools, _handlers: next(replies),
     )
 
     result = advisor.chat_with_trace(_profile(), [_match()], 2_000, "ما هو القسط؟")
@@ -221,3 +236,42 @@ def test_advisor_trace_accumulates_usage_after_retry(monkeypatch):
     assert result.usage["output_tokens"] == 13
     assert result.usage["total_tokens"] == 58
     assert result.usage["model_calls"] == 2
+
+
+def test_advisor_allows_numbers_returned_by_deterministic_tools(monkeypatch):
+    def fake_complete(_system, _user, _tools, handlers):
+        tool_result = handlers["simulate_scenario"]({
+            "requested_amount": 60_000,
+            "requested_tenor_months": 36,
+        })
+        installment = tool_result["matches"][0]["monthly_installment"]
+        return _completion(
+            f"القسط في المحاكاة هو {installment}.",
+            tool_results=[
+                llm_client.LLMToolResult(
+                    tool_use_id="toolu_1",
+                    name="simulate_scenario",
+                    input={
+                        "requested_amount": 60_000,
+                        "requested_tenor_months": 36,
+                    },
+                    result=tool_result,
+                    round_number=1,
+                )
+            ],
+        )
+
+    monkeypatch.setattr(advisor.llm_client, "complete_with_tools", fake_complete)
+
+    result = advisor.chat_with_trace(
+        _profile(),
+        [_match()],
+        2_000,
+        "احسب محاكاة 60000 ريال.",
+    )
+
+    assert result.guardrail_retries == 0
+    assert result.tool_results == [
+        {"tool": "simulate_scenario", "round": 1, "is_error": False}
+    ]
+    assert "القسط في المحاكاة" in result.reply

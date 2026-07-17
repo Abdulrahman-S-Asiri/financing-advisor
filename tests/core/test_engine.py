@@ -1,6 +1,6 @@
 """Tests for the deterministic core. If these are green, the agents can
 be trusted to *narrate* the numbers; if they are red, nothing else matters.
-Run: pytest core/tests -q
+Run: pytest tests -q
 """
 from core import cost, dbr
 from core.eligibility import match_offer, rank_matches
