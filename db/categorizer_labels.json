@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "categories": [
+    "salary",
+    "other_income",
+    "salary_linked_obligation",
+    "other_obligation",
+    "real_estate_obligation",
+    "ignore"
+  ],
+  "labels": [
+    {
+      "description": "MUDAD-GOV SALARY MINISTRY OF EDUCATION",
+      "credit": true,
+      "category": "salary",
+      "source_personas": ["sara_strong"]
+    },
+    {
+      "description": "SALARY TRANSFER TECHCO LTD",
+      "credit": true,
+      "category": "salary",
+      "source_personas": ["ahmed_borderline"]
+    },
+    {
+      "description": "SALARY PAYROLL ALFA TRADING",
+      "credit": true,
+      "category": "salary",
+      "source_personas": ["khalid_rejected"]
+    },
+    {
+      "description": "قسط سيارة EMKAN FINANCE INSTALLMENT",
+      "credit": false,
+      "category": "salary_linked_obligation",
+      "source_personas": ["ahmed_borderline"]
+    },
+    {
+      "description": "TABBY SUBSCRIPTION PLAN",
+      "credit": false,
+      "category": "other_obligation",
+      "source_personas": ["ahmed_borderline"]
+    },
+    {
+      "description": "قسط تمويل شخصي NAYIFAT INSTALLMENT",
+      "credit": false,
+      "category": "salary_linked_obligation",
+      "source_personas": ["khalid_rejected"]
+    },
+    {
+      "description": "قسط FINANCE INSTALLMENT AJIL",
+      "credit": false,
+      "category": "salary_linked_obligation",
+      "source_personas": ["khalid_rejected"]
+    },
+    {
+      "description": "PANDA RETAIL",
+      "credit": false,
+      "category": "ignore",
+      "source_personas": ["sara_strong", "ahmed_borderline", "khalid_rejected"]
+    },
+    {
+      "description": "STC PAY TOPUP",
+      "credit": false,
+      "category": "ignore",
+      "source_personas": ["sara_strong", "ahmed_borderline", "khalid_rejected"]
+    },
+    {
+      "description": "SACO HARDWARE",
+      "credit": false,
+      "category": "ignore",
+      "source_personas": ["sara_strong", "ahmed_borderline", "khalid_rejected"]
+    },
+    {
+      "description": "ALBAIK RESTAURANT",
+      "credit": false,
+      "category": "ignore",
+      "source_personas": ["sara_strong", "ahmed_borderline", "khalid_rejected"]
+    },
+    {
+      "description": "PETROMIN FUEL",
+      "credit": false,
+      "category": "ignore",
+      "source_personas": ["sara_strong", "ahmed_borderline", "khalid_rejected"]
+    },
+    {
+      "description": "JARIR BOOKSTORE",
+      "credit": false,
+      "category": "ignore",
+      "source_personas": ["sara_strong", "ahmed_borderline", "khalid_rejected"]
+    }
+  ]
+}

@@ -4,11 +4,29 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
+from agents import categorizer, llm_client
 from agents.events import AgentEvent, AgentEventType, AgentName, EventRecorder
 from core import cost, dbr
 from core.eligibility import match_offer, rank_matches
 from core.models import FinancialProfile, MatchResult, MatchStatus, Offer
-from core.profile import Txn, extract_profile
+from core.profile import (
+    BNPL_KEYWORDS,
+    FINANCE_KEYWORDS,
+    MORTGAGE_KEYWORDS,
+    SALARY_KEYWORDS,
+    Txn,
+    extract_profile,
+)
+
+
+OTHER_INCOME_KEYWORDS = ("RENT", "ايجار", "DIVIDEND")
+KNOWN_PROFILE_KEYWORDS = (
+    SALARY_KEYWORDS
+    + FINANCE_KEYWORDS
+    + BNPL_KEYWORDS
+    + MORTGAGE_KEYWORDS
+    + OTHER_INCOME_KEYWORDS
+)
 
 
 def _dbr_payload(match: MatchResult) -> dict | None:
@@ -217,6 +235,51 @@ def _cheapest_savings_payload(matches: list[MatchResult]) -> dict:
     return payload
 
 
+def _known_profile_description(description: str) -> bool:
+    return any(keyword in description for keyword in KNOWN_PROFILE_KEYWORDS)
+
+
+def _categorizer_candidates(txns: list[Txn]) -> list[categorizer.CategorizationCandidate]:
+    candidates: list[categorizer.CategorizationCandidate] = []
+    seen: set[tuple[str, bool]] = set()
+    for txn in txns:
+        description = " ".join(txn.description.strip().upper().split())
+        if not description or _known_profile_description(description):
+            continue
+        key = (description, txn.credit)
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append(
+            categorizer.CategorizationCandidate(description, credit=txn.credit)
+        )
+    return candidates
+
+
+def _categorizer_configured() -> bool:
+    try:
+        llm_client.resolve_provider()
+    except llm_client.LLMNotConfigured:
+        return False
+    return True
+
+
+def _categorizer_finding_payload(
+    batch: categorizer.CategorizationBatch,
+) -> dict:
+    payload = {
+        "candidate_count": batch.attempted_count,
+        "labeled_count": len(batch.labels),
+        "applied_label_count": sum(
+            1 for category in batch.labels.values() if category != "ignore"
+        ),
+        "fallback": bool(batch.error),
+    }
+    if batch.error:
+        payload["error"] = batch.error
+    return payload
+
+
 def run_journey(
     *,
     persona_id: str,
@@ -237,6 +300,32 @@ def run_journey(
         "بدأ وكيل الملف المالي تحليل العمليات.",
         {"transaction_count": len(txns)},
     )
+
+    profile_categorizer = None
+    if _categorizer_configured():
+        candidates = _categorizer_candidates(txns)
+        if candidates:
+            events.emit(
+                AgentEventType.TOOL_CALLED,
+                AgentName.FINANCIAL_PROFILE,
+                "استدعاء مصنف أوصاف العمليات للعمليات غير الواضحة.",
+                {
+                    "tool": "agents.categorizer.categorize",
+                    "candidate_count": len(candidates),
+                },
+            )
+            categorization = categorizer.categorize(candidates)
+            if categorization.labels:
+                profile_categorizer = categorizer.callback_from_labels(
+                    categorization.labels
+                )
+            events.emit(
+                AgentEventType.FINDING,
+                AgentName.FINANCIAL_PROFILE,
+                "اكتمل تصنيف أوصاف العمليات غير الواضحة.",
+                _categorizer_finding_payload(categorization),
+            )
+
     events.emit(
         AgentEventType.TOOL_CALLED,
         AgentName.FINANCIAL_PROFILE,
@@ -248,6 +337,7 @@ def run_journey(
         txns,
         age=age,
         nationality=nationality,
+        categorizer=profile_categorizer,
     )
     events.emit(
         AgentEventType.FINDING,
