@@ -17,8 +17,10 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import asdict, dataclass
+from typing import Any
 
-from agents import llm_client
+from agents import advisor_tools, llm_client
+from core import dbr
 from core.models import FinancialProfile, MatchResult
 
 SYSTEM = """You are a Saudi consumer-financing advisor inside a licensed-style \
@@ -27,13 +29,14 @@ finance aggregation platform.
 Hard rules:
 1. NEVER invent, estimate, or recompute any number. Every figure you state \
 (installment, APR, ratio, cap, headroom) must appear verbatim in the CONTEXT \
-JSON. If a number is missing, say the engine has not computed it.
+JSON or a TOOL RESULT. If a number is missing, call the relevant tool or say \
+the engine has not computed it.
 2. Eligibility outcomes come only from the engine. You may explain WHY using \
 the provided reasons/conditions, and what could change the outcome.
 3. Explain Islamic finance structures (tawarruq, murabaha, ijarah) plainly \
 when asked. Compare offers on total amount payable and APR.
-4. Full month-by-month schedules are not included in chat context. If the user \
-asks for a full schedule, say to open the offer detail schedule.
+4. Use tools for what-if simulations, full offer detail, payment schedules, \
+or DBR evaluations that are not already in CONTEXT.
 5. Reply in the user's language (Arabic or English). Be concise and concrete.
 6. You are not the lender. Final approval always rests with the institution.
 """
@@ -52,25 +55,105 @@ class AdvisorChatResult:
     # attempts contained unsupported numbers). The API forwards this so the UI
     # can mark the message honestly instead of string-matching the prose.
     guardrail_fallback: bool = False
+    tool_results: list[dict] | None = None
+
+
+ADVISOR_TOOL_DEFINITIONS = [
+    {
+        "name": "simulate_scenario",
+        "description": (
+            "Run deterministic matching and pricing for a requested amount, "
+            "tenor, and optional salary-transfer scenario."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "requested_amount": {"type": "number"},
+                "requested_tenor_months": {"type": "integer"},
+                "salary_transfer": {"type": "boolean"},
+            },
+            "required": ["requested_amount", "requested_tenor_months"],
+        },
+    },
+    {
+        "name": "get_offer_detail",
+        "description": (
+            "Return deterministic full detail for one offer in the current journey."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"offer_id": {"type": "string"}},
+            "required": ["offer_id"],
+        },
+    },
+    {
+        "name": "get_payment_schedule",
+        "description": (
+            "Return the deterministic month-by-month payment schedule for one offer."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"offer_id": {"type": "string"}},
+            "required": ["offer_id"],
+        },
+    },
+    {
+        "name": "evaluate_dbr",
+        "description": (
+            "Evaluate SAMA debt-burden ratios for a proposed new installment."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "new_installment": {"type": "number"},
+                "new_is_salary_linked": {"type": "boolean"},
+                "new_is_real_estate": {"type": "boolean"},
+            },
+            "required": ["new_installment"],
+        },
+    },
+]
 
 
 def build_context(profile: FinancialProfile, matches: list[MatchResult],
                   max_affordable: float) -> str:
     payload = {
-        "profile": asdict(profile),
+        "profile": {
+            "persona_id": profile.persona_id,
+            "gross_salary": profile.gross_salary,
+            "other_monthly_income_avg": profile.other_monthly_income_avg,
+            "total_monthly_income": profile.total_monthly_income,
+            "employment_type": profile.employment_type.value,
+            "is_retiree": profile.is_retiree,
+            "age": profile.age,
+            "nationality": profile.nationality,
+            "salary_linked_obligations": profile.salary_linked_obligations,
+            "other_obligations": profile.other_obligations,
+            "real_estate_obligations": profile.real_estate_obligations,
+            "salary_bank": profile.salary_bank,
+            "salary_stability_score": profile.salary_stability_score,
+            "obligation_trend": profile.obligation_trend,
+            "confidence_level": profile.confidence_level,
+        },
         "total_monthly_income_after_16b_haircut": profile.total_monthly_income,
         "max_affordable_new_installment": max_affordable,
         "matches": [
             {
+                "offer_id": m.offer.id,
                 "institution": m.offer.institution,
                 "product": m.offer.product_name,
                 "structure": m.offer.structure.value,
                 "status": m.status.value,
-                "reasons": m.reasons,
-                "conditions": m.conditions,
-                "cost": asdict(m.cost) if m.cost else None,
+                "monthly_installment": (
+                    m.cost.monthly_installment if m.cost else None
+                ),
+                "apr_effective": m.cost.apr_effective if m.cost else None,
+                "total_amount_payable": (
+                    m.cost.total_amount_payable if m.cost else None
+                ),
                 "payment_schedule_months": m.cost.tenor_months if m.cost else 0,
-                "dbr": asdict(m.dbr) if m.dbr else None,
+                "reasons": m.reasons[:2],
+                "conditions": m.conditions[:2],
                 "rate_verified": m.offer.rate_verified,
                 "source_url": m.offer.source_url,
                 "retrieved_at": m.offer.retrieved_at,
@@ -82,6 +165,119 @@ def build_context(profile: FinancialProfile, matches: list[MatchResult],
         ],
     }
     return json.dumps(payload, ensure_ascii=False, default=str)
+
+
+def _tool_results_for_trace(
+    results: list[llm_client.LLMToolResult],
+) -> list[dict]:
+    return [
+        {
+            "tool": result.name,
+            "round": result.round_number,
+            "is_error": result.is_error,
+        }
+        for result in results
+    ]
+
+
+def _tool_results_context(results: list[llm_client.LLMToolResult]) -> str:
+    if not results:
+        return ""
+    payload = [
+        {
+            "tool": result.name,
+            "round": result.round_number,
+            "result": result.result,
+        }
+        for result in results
+    ]
+    return "\n\nTOOL RESULTS:\n" + json.dumps(payload, ensure_ascii=False, default=str)
+
+
+def _require_number(payload: dict[str, Any], key: str) -> float:
+    value = payload.get(key)
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise advisor_tools.AdvisorToolError(f"{key} must be a number.")
+    return float(value)
+
+
+def _require_int(payload: dict[str, Any], key: str) -> int:
+    value = payload.get(key)
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise advisor_tools.AdvisorToolError(f"{key} must be an integer.")
+    return value
+
+
+def _require_string(payload: dict[str, Any], key: str) -> str:
+    value = payload.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise advisor_tools.AdvisorToolError(f"{key} must be a non-empty string.")
+    return value.strip()
+
+
+def _bool_value(payload: dict[str, Any], key: str, default: bool) -> bool:
+    value = payload.get(key, default)
+    if not isinstance(value, bool):
+        raise advisor_tools.AdvisorToolError(f"{key} must be a boolean.")
+    return value
+
+
+def _unique_offers(matches: list[MatchResult]):
+    offers = []
+    seen: set[str] = set()
+    for match in matches:
+        if match.offer.id in seen:
+            continue
+        offers.append(match.offer)
+        seen.add(match.offer.id)
+    return offers
+
+
+def _advisor_tool_handlers(
+    profile: FinancialProfile,
+    matches: list[MatchResult],
+) -> dict[str, llm_client.ToolHandler]:
+    offers = _unique_offers(matches)
+
+    def simulate_scenario(payload: dict[str, Any]) -> dict:
+        return advisor_tools.simulate(
+            profile,
+            offers,
+            _require_number(payload, "requested_amount"),
+            _require_int(payload, "requested_tenor_months"),
+            salary_transfer=_bool_value(payload, "salary_transfer", False),
+        )
+
+    def get_offer_detail(payload: dict[str, Any]) -> dict:
+        return advisor_tools.get_offer_detail(
+            matches,
+            _require_string(payload, "offer_id"),
+        )
+
+    def get_payment_schedule(payload: dict[str, Any]) -> dict:
+        offer_id = _require_string(payload, "offer_id")
+        return {
+            "offer_id": offer_id,
+            "payment_schedule": advisor_tools.get_payment_schedule(matches, offer_id),
+        }
+
+    def evaluate_dbr(payload: dict[str, Any]) -> dict:
+        decision = dbr.evaluate(
+            profile,
+            new_installment=_require_number(payload, "new_installment"),
+            new_is_salary_linked=_bool_value(
+                payload, "new_is_salary_linked", True
+            ),
+            new_is_real_estate=_bool_value(payload, "new_is_real_estate", False),
+        )
+        return asdict(decision)
+
+    return {
+        "simulate_scenario": simulate_scenario,
+        "get_offer_detail": get_offer_detail,
+        "get_payment_schedule": get_payment_schedule,
+        "evaluate_dbr": evaluate_dbr,
+    }
 
 
 def _number_tokens(text: str) -> list[str]:
@@ -180,8 +376,23 @@ def _usage_payload(completions: list[llm_client.LLMCompletion]) -> dict:
         "cache_creation_input_tokens": cache_creation,
         "cache_read_input_tokens": cache_read,
         "total_tokens": input_tokens + output_tokens,
-        "model_calls": len(completions),
+        "model_calls": sum(item.model_calls for item in completions),
     }
+
+
+def _complete_advisor(
+    context: str,
+    user_message: str,
+    profile: FinancialProfile,
+    matches: list[MatchResult],
+) -> llm_client.LLMCompletion:
+    user = f"CONTEXT:\n{context}\n\nUSER QUESTION:\n{user_message}"
+    return llm_client.complete_with_tools(
+        SYSTEM,
+        user,
+        ADVISOR_TOOL_DEFINITIONS,
+        _advisor_tool_handlers(profile, matches),
+    )
 
 
 def chat_with_trace(
@@ -191,23 +402,31 @@ def chat_with_trace(
     user_message: str,
 ) -> AdvisorChatResult:
     context = build_context(profile, matches, max_affordable)
-    user = f"CONTEXT:\n{context}\n\nUSER QUESTION:\n{user_message}"
     completions: list[llm_client.LLMCompletion] = []
-    completion = llm_client.complete_with_usage(SYSTEM, user)
+    completion = _complete_advisor(context, user_message, profile, matches)
     completions.append(completion)
     reply = completion.text
-    blocked = unsupported_numbers(reply, context)
+    tool_results = list(completion.tool_results)
+    guardrail_context = context + _tool_results_context(tool_results)
+    blocked = unsupported_numbers(reply, guardrail_context)
     if not blocked:
-        return AdvisorChatResult(reply=reply, usage=_usage_payload(completions))
+        return AdvisorChatResult(
+            reply=reply,
+            usage=_usage_payload(completions),
+            tool_results=_tool_results_for_trace(tool_results),
+        )
 
     retry_user = (
-        f"{user}\n\nNUMBER FIDELITY CHECK FAILED:\n"
+        f"{user_message}\n\nNUMBER FIDELITY CHECK FAILED:\n"
         f"The previous reply included unsupported numbers: {', '.join(blocked)}.\n"
         "Rewrite the answer without any number that is absent from CONTEXT."
     )
-    retry_completion = llm_client.complete_with_usage(SYSTEM, retry_user)
+    retry_context = guardrail_context
+    retry_completion = _complete_advisor(retry_context, retry_user, profile, matches)
     completions.append(retry_completion)
-    retry_blocked = unsupported_numbers(retry_completion.text, context)
+    tool_results.extend(retry_completion.tool_results)
+    retry_guardrail_context = context + _tool_results_context(tool_results)
+    retry_blocked = unsupported_numbers(retry_completion.text, retry_guardrail_context)
     if retry_blocked:
         return AdvisorChatResult(
             reply=_fallback_reply(user_message),
@@ -215,12 +434,14 @@ def chat_with_trace(
             guardrail_retries=1,
             unsupported_numbers=blocked + retry_blocked,
             guardrail_fallback=True,
+            tool_results=_tool_results_for_trace(tool_results),
         )
     return AdvisorChatResult(
         reply=retry_completion.text,
         usage=_usage_payload(completions),
         guardrail_retries=1,
         unsupported_numbers=blocked,
+        tool_results=_tool_results_for_trace(tool_results),
     )
 
 

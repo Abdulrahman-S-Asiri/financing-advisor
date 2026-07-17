@@ -342,6 +342,7 @@ def _advisor_reply(req: ChatRequest) -> advisor.AdvisorChatResult:
         )
     except llm_client.LLMNotConfigured as exc:
         raise HTTPException(503, str(exc)) from exc
+    _record_advisor_tool_traces(session, result.tool_results or [])
     _record_advisor_chat(session, result, req.message)
     return result
 
@@ -398,6 +399,30 @@ def _record_advisor_tool(session: dict, tool: str, payload: dict) -> AgentEvent:
     return event
 
 
+def _record_advisor_tool_traces(session: dict, tool_results: list[dict]) -> None:
+    messages = {
+        "simulate_scenario": "استدعاء أداة محاكاة السيناريو داخل المحادثة.",
+        "get_offer_detail": "استدعاء أداة تفاصيل العرض داخل المحادثة.",
+        "get_payment_schedule": "استدعاء أداة جدول السداد داخل المحادثة.",
+        "evaluate_dbr": "استدعاء أداة تقييم نسبة الاستقطاع داخل المحادثة.",
+    }
+    for item in tool_results:
+        tool = item.get("tool", "advisor_tool")
+        event = AgentEvent(
+            journey_id=session["journey_id"],
+            sequence=len(session["events"]) + 1,
+            type=AgentEventType.TOOL_CALLED,
+            agent=AgentName.ADVISOR,
+            message_ar=messages.get(tool, "استدعاء أداة المستشار داخل المحادثة."),
+            payload={
+                "tool": tool,
+                "round": item.get("round"),
+                "is_error": bool(item.get("is_error", False)),
+            },
+        )
+        journey_store.append_event(session, event)
+
+
 def _record_advisor_chat(
     session: dict,
     result: advisor.AdvisorChatResult,
@@ -415,6 +440,7 @@ def _record_advisor_chat(
             "guardrail_retries": result.guardrail_retries,
             "guardrail_fallback": result.guardrail_fallback,
             "unsupported_number_count": len(result.unsupported_numbers or []),
+            "tool_call_count": len(result.tool_results or []),
             "message_length": len(user_message),
             "reply_length": len(result.reply),
         },

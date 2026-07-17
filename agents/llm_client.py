@@ -8,7 +8,10 @@ an API key -- only LLM-backed advisor behavior needs it.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+import json
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
+from typing import Any
 
 try:
     from dotenv import load_dotenv
@@ -18,6 +21,10 @@ except ImportError:
 
 
 class LLMNotConfigured(RuntimeError):
+    pass
+
+
+class LLMToolError(RuntimeError):
     pass
 
 
@@ -58,11 +65,28 @@ class LLMUsage:
 class LLMCompletion:
     text: str
     usage: LLMUsage
+    model_calls: int = 1
+    tool_results: list["LLMToolResult"] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class LLMToolResult:
+    tool_use_id: str
+    name: str
+    input: dict[str, Any]
+    result: dict[str, Any]
+    round_number: int
+    is_error: bool = False
+
+
+ToolDefinition = Mapping[str, Any]
+ToolHandler = Callable[[dict[str, Any]], dict[str, Any]]
 
 
 DEEPSEEK_DEFAULT_BASE_URL = "https://api.deepseek.com/anthropic"
 ANTHROPIC_DEFAULT_MODEL = "claude-sonnet-4-6"
 DEEPSEEK_DEFAULT_MODEL = "deepseek-v4-pro"
+PROMPT_CACHE_CONTROL = {"type": "ephemeral"}
 
 
 def _clean_env(name: str) -> str:
@@ -167,12 +191,49 @@ def _usage_from_message(provider: ProviderConfig, msg) -> LLMUsage:
     )
 
 
-def complete_with_usage(
-    system: str,
-    user: str,
-    max_tokens: int = 1000,
-) -> LLMCompletion:
-    provider = resolve_provider()
+def _aggregate_usage(provider: ProviderConfig, usages: list[LLMUsage]) -> LLMUsage:
+    return LLMUsage(
+        provider=provider.provider,
+        model=provider.model,
+        input_tokens=sum(usage.input_tokens for usage in usages),
+        output_tokens=sum(usage.output_tokens for usage in usages),
+        cache_creation_input_tokens=sum(
+            usage.cache_creation_input_tokens for usage in usages
+        ),
+        cache_read_input_tokens=sum(usage.cache_read_input_tokens for usage in usages),
+    )
+
+
+def _supports_prompt_cache(provider: ProviderConfig) -> bool:
+    if provider.provider != "anthropic":
+        return False
+    compat_target = f"{provider.model} {provider.base_url}".lower()
+    return "deepseek" not in compat_target
+
+
+def _system_payload(provider: ProviderConfig, system: str) -> str | list[dict[str, Any]]:
+    if not _supports_prompt_cache(provider):
+        return system
+    return [
+        {
+            "type": "text",
+            "text": system,
+            "cache_control": dict(PROMPT_CACHE_CONTROL),
+        }
+    ]
+
+
+def _tools_payload(
+    provider: ProviderConfig,
+    tools: list[ToolDefinition],
+) -> list[dict[str, Any]]:
+    payload = [dict(tool) for tool in tools]
+    if payload and _supports_prompt_cache(provider):
+        payload[-1]["cache_control"] = dict(PROMPT_CACHE_CONTROL)
+    return payload
+
+
+def _anthropic_client(provider: ProviderConfig):
     try:
         import anthropic  # lazy: keeps the deterministic path dependency-free
     except ImportError as exc:
@@ -181,13 +242,129 @@ def complete_with_usage(
     client_kwargs = {"api_key": provider.api_key}
     if provider.base_url:
         client_kwargs["base_url"] = provider.base_url
+    return anthropic.Anthropic(**client_kwargs), anthropic
 
-    client = anthropic.Anthropic(**client_kwargs)
+
+def _message_create(client: Any, **kwargs: Any) -> Any:
+    messages = getattr(client, "messages", client)
+    return messages.create(**kwargs)
+
+
+def _block_value(block: Any, key: str, default: Any = None) -> Any:
+    if isinstance(block, Mapping):
+        return block.get(key, default)
+    return getattr(block, key, default)
+
+
+def _content_blocks(msg: Any) -> list[Any]:
+    content = getattr(msg, "content", None)
+    if content is None and isinstance(msg, Mapping):
+        content = msg.get("content", [])
+    return list(content or [])
+
+
+def _text_from_message(msg: Any) -> str:
+    return "".join(
+        str(_block_value(block, "text", ""))
+        for block in _content_blocks(msg)
+        if _block_value(block, "type") == "text"
+    )
+
+
+def _assistant_content_payload(msg: Any) -> list[dict[str, Any]]:
+    payload: list[dict[str, Any]] = []
+    for block in _content_blocks(msg):
+        block_type = _block_value(block, "type")
+        if block_type == "text":
+            payload.append({"type": "text", "text": _block_value(block, "text", "")})
+        elif block_type == "tool_use":
+            payload.append(
+                {
+                    "type": "tool_use",
+                    "id": _block_value(block, "id"),
+                    "name": _block_value(block, "name"),
+                    "input": _block_value(block, "input", {}) or {},
+                }
+            )
+    return payload
+
+
+def _tool_uses_from_message(msg: Any) -> list[dict[str, Any]]:
+    uses: list[dict[str, Any]] = []
+    for block in _content_blocks(msg):
+        if _block_value(block, "type") != "tool_use":
+            continue
+        tool_input = _block_value(block, "input", {}) or {}
+        if not isinstance(tool_input, dict):
+            raise LLMToolError("Tool input must be a JSON object.")
+        uses.append(
+            {
+                "id": str(_block_value(block, "id", "")),
+                "name": str(_block_value(block, "name", "")),
+                "input": tool_input,
+            }
+        )
+    return uses
+
+
+def _tool_result_content(results: list[LLMToolResult]) -> list[dict[str, Any]]:
+    content: list[dict[str, Any]] = []
+    for result in results:
+        item: dict[str, Any] = {
+            "type": "tool_result",
+            "tool_use_id": result.tool_use_id,
+            "content": json.dumps(result.result, ensure_ascii=False, default=str),
+        }
+        if result.is_error:
+            item["is_error"] = True
+        content.append(item)
+    return content
+
+
+def _execute_tool_use(
+    tool_use: dict[str, Any],
+    handlers: Mapping[str, ToolHandler],
+    round_number: int,
+) -> LLMToolResult:
+    name = tool_use["name"]
+    handler = handlers.get(name)
+    if handler is None:
+        raise LLMToolError(f"Unknown tool requested by model: {name}")
     try:
-        msg = client.messages.create(
+        result = handler(tool_use["input"])
+    except Exception as exc:
+        return LLMToolResult(
+            tool_use_id=tool_use["id"],
+            name=name,
+            input=tool_use["input"],
+            result={"error": str(exc)},
+            round_number=round_number,
+            is_error=True,
+        )
+    if not isinstance(result, dict):
+        raise LLMToolError(f"Tool handler must return a dict: {name}")
+    return LLMToolResult(
+        tool_use_id=tool_use["id"],
+        name=name,
+        input=tool_use["input"],
+        result=result,
+        round_number=round_number,
+    )
+
+
+def complete_with_usage(
+    system: str,
+    user: str,
+    max_tokens: int = 1000,
+) -> LLMCompletion:
+    provider = resolve_provider()
+    client, anthropic = _anthropic_client(provider)
+    try:
+        msg = _message_create(
+            client,
             model=provider.model,
             max_tokens=max_tokens,
-            system=system,
+            system=_system_payload(provider, system),
             messages=[{"role": "user", "content": user}],
         )
     except anthropic.AuthenticationError as exc:
@@ -208,8 +385,118 @@ def complete_with_usage(
             f"{provider.provider} returned HTTP {exc.status_code}. Check provider configuration."
         ) from exc
 
-    text = "".join(block.text for block in msg.content if block.type == "text")
+    text = _text_from_message(msg)
     return LLMCompletion(text=text, usage=_usage_from_message(provider, msg))
+
+
+def complete_with_tools(
+    system: str,
+    user: str,
+    tools: list[ToolDefinition],
+    handlers: Mapping[str, ToolHandler],
+    *,
+    max_tokens: int = 1000,
+    max_tool_rounds: int = 5,
+    provider: ProviderConfig | None = None,
+    client: Any | None = None,
+) -> LLMCompletion:
+    """Run the Anthropic-style tool loop with deterministic local handlers.
+
+    The model may request tools, but each tool result comes from code supplied
+    by the caller. After the configured number of tool-use rounds, tools are
+    withheld and the model is forced to answer from already-returned results.
+    """
+    if max_tool_rounds < 0:
+        raise ValueError("max_tool_rounds must be non-negative.")
+
+    provider = provider or resolve_provider()
+    anthropic_module = None
+    if client is None:
+        client, anthropic_module = _anthropic_client(provider)
+
+    messages: list[dict[str, Any]] = [{"role": "user", "content": user}]
+    usages: list[LLMUsage] = []
+    tool_results: list[LLMToolResult] = []
+    tool_rounds = 0
+
+    while True:
+        request: dict[str, Any] = {
+            "model": provider.model,
+            "max_tokens": max_tokens,
+            "system": _system_payload(provider, system),
+            "messages": messages,
+        }
+        if tools:
+            request["tools"] = _tools_payload(provider, tools)
+
+        try:
+            msg = _message_create(client, **request)
+        except Exception as exc:
+            if anthropic_module is None:
+                raise
+            if isinstance(exc, anthropic_module.AuthenticationError):
+                raise LLMNotConfigured(
+                    f"{provider.provider} rejected the configured API key. Check that the key matches "
+                    "the configured provider endpoint."
+                ) from exc
+            if isinstance(exc, anthropic_module.APIConnectionError):
+                raise LLMNotConfigured(
+                    f"{provider.provider} is unreachable. Check provider base URL and network access."
+                ) from exc
+            if isinstance(exc, anthropic_module.RateLimitError):
+                raise LLMNotConfigured(
+                    f"{provider.provider} rate limit reached. Try again later."
+                ) from exc
+            if isinstance(exc, anthropic_module.APIStatusError):
+                raise LLMNotConfigured(
+                    f"{provider.provider} returned HTTP {exc.status_code}. Check provider configuration."
+                ) from exc
+            raise
+
+        usages.append(_usage_from_message(provider, msg))
+        tool_uses = _tool_uses_from_message(msg)
+        if not tool_uses:
+            return LLMCompletion(
+                text=_text_from_message(msg),
+                usage=_aggregate_usage(provider, usages),
+                model_calls=len(usages),
+                tool_results=tool_results,
+            )
+
+        messages.append({"role": "assistant", "content": _assistant_content_payload(msg)})
+        round_number = tool_rounds + 1
+        round_results = [
+            _execute_tool_use(tool_use, handlers, round_number)
+            for tool_use in tool_uses
+        ]
+        tool_results.extend(round_results)
+        messages.append({"role": "user", "content": _tool_result_content(round_results)})
+        tool_rounds += 1
+
+        if tool_rounds >= max_tool_rounds:
+            messages.append(
+                {
+                    "role": "user",
+                    "content": (
+                        "Tool-call limit reached. Give a final answer using only "
+                        "the context and tool results already returned."
+                    ),
+                }
+            )
+            final_msg = _message_create(
+                client,
+                model=provider.model,
+                max_tokens=max_tokens,
+                system=_system_payload(provider, system),
+                messages=messages,
+            )
+            usages.append(_usage_from_message(provider, final_msg))
+            return LLMCompletion(
+                text=_text_from_message(final_msg),
+                usage=_aggregate_usage(provider, usages),
+                model_calls=len(usages),
+                tool_results=tool_results,
+            )
 
 
 def complete(system: str, user: str, max_tokens: int = 1000) -> str:
