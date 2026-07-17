@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
+*.egg-info/
 .env
 .pytest_cache/
 .venv/
@@ -9,6 +10,12 @@ frontend/out/
 frontend/.env*
 frontend/test-results/
 frontend/playwright-report/
+frontend-v3/.next/
+frontend-v3/node_modules/
+frontend-v3/out/
+frontend-v3/.env*
+frontend-v3/test-results/
+frontend-v3/playwright-report/
 *.tsbuildinfo
 
 # Local assistant/tooling config — private by policy, never published.

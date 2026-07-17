@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "athar-financing-advisor"
+version = "0.1.0"
+description = "Agentic financing advisor for Saudi consumers with deterministic affordability and offer-matching logic."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "httpx>=0.27",
+  "pydantic>=2.7",
+  "anthropic>=0.40",
+  "python-dotenv>=1.0",
+  "psycopg[binary,pool]>=3.2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["agents*", "api*", "core*", "mock_open_banking*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "mcp_server/tests"]
