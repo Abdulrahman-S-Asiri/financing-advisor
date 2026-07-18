@@ -5,7 +5,7 @@ This file records completed implementation phases, verification status, and the 
 ## Current Status
 
 - Branch: `master`
-- Latest documented phase: Phase 4 deployment groundwork — containerized backend services
+- Latest documented phase: Fresh bilingual frontend rebuild
 - Main app flow: consent simulation, live journey events, financial dashboard, offers marketplace, what-if simulator, advisor chat, simulated application tracker, and route-persistent journey state.
 - Frontend identity: ATHAR / أثر is the official website identity, using Midnight Navy, Dune Gold, Sand White, Ink, the decision-dot mark, and the approved typography stack.
 - Repository shape: one live frontend in `frontend/`, Python dependencies in `pyproject.toml`, backend tests under `tests/`, and planning docs under `docs/`.
@@ -15,6 +15,7 @@ This file records completed implementation phases, verification status, and the 
 
 | Area | Status | Notes |
 |---|---|---|
+| Fresh bilingual frontend | Done | Previous frontend trees were owner-approved for deletion and replaced with one Next.js 16 app at `frontend/`, Arabic-default RTL and English `/en/*`, frozen zod contracts, route-persistent state, honesty surfaces, unit/audit tests, and Playwright coverage. |
 | Provider configuration | Done | Supports Anthropic-compatible and DeepSeek provider settings from environment variables. |
 | Agent event pipeline | Done | Journey pipeline emits ordered events for profile, matching, cost, advisor, and application surfaces. |
 | Streaming contracts | Done | Journey and chat streams use structured SSE frames with IDs and retry hints. |

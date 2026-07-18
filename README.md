@@ -114,7 +114,7 @@ the repository.
 ## Architecture
 
 ```
-frontend/  ─────────  Arabic-first ATHAR website (:3000)
+frontend/  ─────────  Bilingual ATHAR website (:3000; Arabic default, English `/en/*`)
    |  /            landing page (value prop + honesty strip + demo CTAs)
    |  /journey     the ATHAR decision journey (?persona=<id> preselects the form)
    |     Discover     persona + consent + financing request

@@ -44,7 +44,8 @@ A complete consumer-facing website (Arabic-first, RTL), currently demo-grade:
 ## 3. Architecture
 
 ```
-frontend/  Next.js App Router (:3000), ATHAR tokens, Tailwind v4, Arabic-first RTL
+frontend/  Next.js 16 App Router (:3000), ATHAR tokens, Tailwind v4,
+           Arabic-default RTL + English `/en/*` LTR
    |   /            landing (static)
    |   /journey     consent + persona/request form (?persona= preselect)
    |   /journey/analysis   live event timeline + financial dashboard

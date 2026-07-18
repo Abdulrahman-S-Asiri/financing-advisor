@@ -1,0 +1,1 @@
+"use client";import{Button}from"@/components/ui";export default function ErrorPage({reset}:{reset:()=>void}){return <main className="container page"><div className="alert alertError"><h2>تعذر تحميل الصفحة / Page unavailable</h2><Button onClick={reset}>Retry</Button></div></main>}

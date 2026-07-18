@@ -1,0 +1,1 @@
+import Link from"next/link";export default function NotFound(){return <main className="container page"><h2>الصفحة غير موجودة / Page not found</h2><Link className="button buttonPrimary" href="/">Home</Link></main>}

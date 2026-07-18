@@ -1,0 +1,1 @@
+import{JourneyWorkspace}from"@/components/journey-workspace";import{isLocale,messages}from"@/lib/i18n";export default async function Page({params}:{params:Promise<{locale:string}>}){const{locale}=await params;if(!isLocale(locale))return null;return <JourneyWorkspace locale={locale} m={messages[locale]} stage="analysis"/>}
