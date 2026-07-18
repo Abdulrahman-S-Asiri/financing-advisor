@@ -95,6 +95,20 @@ containerized API. The compose defaults are local-only development
 credentials; real deployment secrets belong in the hosting platform, not in
 the repository.
 
+### Public demo deployment
+
+`render.yaml` deploys the API and mock Open Banking service as two free Render
+web services from the demo branch. After the Blueprint is live, configure the
+Vercel frontend project with:
+
+```text
+BACKEND_URL=https://athar-financing-api-asiri.onrender.com
+```
+
+The public demo intentionally uses in-memory storage and no LLM key. Render's
+free services can sleep while idle, so the first journey after inactivity can
+take longer while both backend services wake up.
+
 ## Project docs
 
 - [Execution plan](docs/PLAN.md) — product scope, architecture, testing

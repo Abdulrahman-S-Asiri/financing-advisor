@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: athar-mock-ob-asiri
+    runtime: docker
+    plan: free
+    region: singapore
+    repo: https://github.com/Abdulrahman-S-Asiri/ATHAR.git
+    branch: codex/fresh-bilingual-frontend
+    dockerfilePath: ./Dockerfile.mock-open-banking
+    dockerContext: .
+    dockerCommand: python -m uvicorn mock_open_banking.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /openapi.json
+    autoDeployTrigger: commit
+    envVars:
+      - key: PYTHON_DOTENV_DISABLED
+        value: "1"
+
+  - type: web
+    name: athar-financing-api-asiri
+    runtime: docker
+    plan: free
+    region: singapore
+    repo: https://github.com/Abdulrahman-S-Asiri/ATHAR.git
+    branch: codex/fresh-bilingual-frontend
+    dockerfilePath: ./Dockerfile.api
+    dockerContext: .
+    dockerCommand: python -m uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    envVars:
+      - key: PYTHON_DOTENV_DISABLED
+        value: "1"
+      - key: OPEN_BANKING_PROVIDER
+        value: mock
+      - key: MOCK_OB_BASE_URL
+        value: https://athar-mock-ob-asiri.onrender.com
+      - key: JOURNEY_STORE_MAX
+        value: "500"
+      - key: APPLICATION_STORE_MAX
+        value: "500"
